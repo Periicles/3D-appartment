@@ -1,1 +1,20 @@
 # 3D-appartment
+
+Outil desktop d'aménagement intérieur en 2D et 3D, construit avec Godot 4 (GDScript).
+
+## Prérequis
+
+- [Godot 4.7](https://godotengine.org/) (`brew install --cask godot` sur macOS)
+
+## Lancer le projet
+
+```sh
+godot --editor project.godot
+```
+
+## Workflow Git
+
+- `main` : branche de release uniquement.
+- `develop` : branche d'intégration, base de tout le travail.
+- Chaque changement se fait sur une branche `feat/*`, `fix/*`, `docs/*` ou `chore/*` créée depuis `develop`, puis fusionné via pull request vers `develop`.
+- Les releases passent de `develop` vers `main`.

@@ -1,0 +1,13 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+
+# Exports
+/build/
+*.dmg
+*.exe
+*.pck
+
+# OS
+.DS_Store
