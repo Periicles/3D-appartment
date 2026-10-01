@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FurniturePreset" format=3]
+
+[ext_resource type="Script" path="res://src/model/furniture_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "sofa_2"
+name = "Canapé 2 places"
+category = "Salon"
+size = Vector3(1.6, 0.85, 0.9)
+color = Color(0.7882, 0.6588, 0.5412, 1)

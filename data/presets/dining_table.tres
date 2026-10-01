@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FurniturePreset" format=3]
+
+[ext_resource type="Script" path="res://src/model/furniture_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dining_table"
+name = "Table à manger"
+category = "Cuisine et repas"
+size = Vector3(1.6, 0.75, 0.9)
+color = Color(0.6118, 0.4784, 0.3451, 1)
