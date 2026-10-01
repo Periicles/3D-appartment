@@ -17,11 +17,14 @@ var camera: Camera3D
 
 var _placing: FurniturePreset
 var _ghost_pos := Vector2.ZERO
-var _ghost_rotation := 0.0
+var _ghost_rotation := 0.0  # displayed rotation, may come from a wall
+var _user_rotation := 0.0  # what the player asked for, kept apart from wall snapping
+var _last_mouse := Vector2.ZERO
 var _dragging := false
 var _drag_offset := Vector2.ZERO
 var _drag_pos := Vector2.ZERO
 var _drag_rotation := 0.0
+var _drag_start_rotation := 0.0
 var _selection := ""  # last id announced through selection_changed
 
 
@@ -46,9 +49,10 @@ func begin_placement(preset: FurniturePreset) -> void:
 	_select("")
 	_placing = preset
 	_ghost_rotation = 0.0
+	_user_rotation = 0.0
 	view.show_ghost(preset.size, preset.color)
-	var mouse := camera.get_viewport().get_mouse_position()
-	_update_ghost(mouse, false)
+	_last_mouse = camera.get_viewport().get_mouse_position()
+	_update_ghost(_last_mouse, false)
 
 
 func cancel_placement() -> void:
@@ -69,13 +73,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_mouse_motion(event: InputEventMouseMotion) -> void:
 	if _placing != null:
+		_last_mouse = event.position
 		_update_ghost(event.position, event.alt_pressed)
 	elif _dragging:
+		if not event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_finish_drag()  # The release went to a GUI control.
+			return
 		var ground = _ground_point(event.position)
 		if ground == null:
 			return
 		var item: FurnitureItem = store.get_furniture(selected_id())
-		var placed := _snap(ground + _drag_offset, item.size, _drag_rotation, event.alt_pressed)
+		var placed := _snap(ground + _drag_offset, item.size, _drag_start_rotation, event.alt_pressed)
 		_drag_pos = placed.pos
 		_drag_rotation = placed.rotation_deg
 		view.preview_item(item.id, _drag_pos, _drag_rotation)
@@ -90,7 +98,7 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 			elif _dragging:
 				_finish_drag()
 		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
-			if event.pressed and event.shift_pressed and selected_id() != "":
+			if event.pressed and event.shift_pressed and selected_id() != "" and not _dragging:
 				var step := FINE_ROTATE_STEP_DEG if event.button_index == MOUSE_BUTTON_WHEEL_UP else -FINE_ROTATE_STEP_DEG
 				_rotate_selected(step)
 				get_viewport().set_input_as_handled()
@@ -114,6 +122,7 @@ func _on_left_press(event: InputEventMouseButton) -> void:
 		_drag_offset = item.pos - ground
 		_drag_pos = item.pos
 		_drag_rotation = item.rotation_deg
+		_drag_start_rotation = item.rotation_deg
 	get_viewport().set_input_as_handled()
 
 
@@ -135,7 +144,7 @@ func _on_key(event: InputEventKey) -> void:
 		else:
 			store.undo()
 	elif command and event.keycode == KEY_D:
-		if selected_id() != "":
+		if selected_id() != "" and not _dragging:
 			_select(store.duplicate_furniture(selected_id()))
 	elif event.keycode == KEY_ESCAPE:
 		if _placing != null:
@@ -143,11 +152,11 @@ func _on_key(event: InputEventKey) -> void:
 		else:
 			_select("")
 	elif event.keycode == KEY_R and _placing != null:
-		_ghost_rotation = fposmod(_ghost_rotation + ROTATE_STEP_DEG, 360.0)
-		view.move_ghost(_ghost_pos, _ghost_rotation)
-	elif event.keycode == KEY_R and selected_id() != "":
+		_user_rotation = fposmod(_user_rotation + ROTATE_STEP_DEG, 360.0)
+		_update_ghost(_last_mouse, false)
+	elif event.keycode == KEY_R and selected_id() != "" and not _dragging:
 		_rotate_selected(ROTATE_STEP_DEG)
-	elif event.keycode in [KEY_DELETE, KEY_BACKSPACE] and selected_id() != "":
+	elif event.keycode in [KEY_DELETE, KEY_BACKSPACE] and selected_id() != "" and not _dragging:
 		store.remove_furniture(selected_id())
 	else:
 		return
@@ -163,7 +172,7 @@ func _update_ghost(screen_pos: Vector2, free_move: bool) -> void:
 	var ground = _ground_point(screen_pos)
 	if ground == null:
 		return
-	var placed := _snap(ground, _placing.size, _ghost_rotation, free_move)
+	var placed := _snap(ground, _placing.size, _user_rotation, free_move)
 	_ghost_pos = placed.pos
 	_ghost_rotation = placed.rotation_deg
 	view.move_ghost(_ghost_pos, _ghost_rotation)

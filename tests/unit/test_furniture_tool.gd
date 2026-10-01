@@ -218,3 +218,49 @@ func test_loading_a_project_cancels_placement() -> void:
 	_tool.begin_placement(load(SOFA_PRESET))
 	_store.load_from_file("res://data/log16.json")
 	assert_false(_tool.is_placing())
+
+
+func test_user_rotation_survives_a_wall_touch_while_placing() -> void:
+	_tool.begin_placement(load(SOFA_PRESET))
+	_move(Vector2(2, 2))
+	_key(KEY_R)
+	var ghost := _view.get_node("Ghost") as Node3D
+	assert_almost_eq(ghost.rotation_degrees.y, 90.0, EPS)
+	_move(Vector2(2, 0.62))
+	assert_almost_eq(ghost.rotation_degrees.y, 0.0, EPS)
+	_move(Vector2(2, 2))
+	assert_almost_eq(ghost.rotation_degrees.y, 90.0, EPS)
+	_click(Vector2(2, 2))
+	assert_almost_eq(_store.project.furniture[0].rotation_deg, 90.0, EPS)
+
+
+func test_user_rotation_survives_a_wall_touch_while_dragging() -> void:
+	var id := _add_sofa(Vector2(2, 2), 90.0)
+	_click(Vector2(2, 2))
+	_move(Vector2(2, 0.62), false, true)
+	_move(Vector2(2, 2.2), false, true)
+	_click(Vector2(2, 2.2), false)
+	assert_almost_eq(_store.get_furniture(id).rotation_deg, 90.0, EPS)
+
+
+func test_drag_finishes_when_the_release_was_swallowed() -> void:
+	var id := _add_sofa(Vector2(2, 2))
+	_click(Vector2(2, 2))
+	_move(Vector2(2.5, 2.3), false, true)
+	_move(Vector2(2.6, 2.4))
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2.5, 2.3), Vector2(EPS, EPS), "committed at the last preview")
+	_move(Vector2(3.0, 3.0), false, true)
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2.5, 2.3), Vector2(EPS, EPS))
+
+
+func test_rotating_during_a_drag_is_ignored() -> void:
+	var id := _add_sofa(Vector2(2, 2))
+	_click(Vector2(2, 2))
+	_move(Vector2(2.5, 2.3), false, true)
+	_key(KEY_R)
+	_wheel(true, true)
+	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
+	_click(Vector2(2.5, 2.3), false)
+	_store.undo()
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2, 2), Vector2(EPS, EPS))
+	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
