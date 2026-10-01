@@ -82,3 +82,35 @@ func test_back_to_orbit_restores_perspective_and_heading() -> void:
 	await wait_seconds(WAIT)
 	assert_eq(_camera.projection, Camera3D.PROJECTION_PERSPECTIVE)
 	assert_almost_eq(_camera.transform.origin, _camera.orbit.camera_transform().origin, Vector3(EPS, EPS, EPS))
+
+
+func test_transition_height_matches_the_orthographic_scale() -> void:
+	assert_almost_eq(OrbitCamera.plan_transition_height(10.0, 90.0), 5.0, EPS)
+
+
+func test_transition_height_is_clamped_above_the_walls() -> void:
+	assert_eq(OrbitCamera.plan_transition_height(0.5, 75.0), OrbitCamera.MIN_TRANSITION_HEIGHT)
+
+
+func test_leaving_plan_starts_from_the_matching_height() -> void:
+	_camera.set_plan_mode(true, false)
+	_camera.set_plan_mode(false)
+	assert_eq(_camera.projection, Camera3D.PROJECTION_PERSPECTIVE)
+	assert_almost_eq(_camera.position.y, OrbitCamera.plan_transition_height(_camera.orbit.distance, _camera.fov), EPS)
+
+
+func test_entering_plan_ends_orthographic_at_plan_height() -> void:
+	_camera.set_plan_mode(true)
+	await wait_seconds(WAIT)
+	assert_almost_eq(_camera.position.y, OrbitCamera.PLAN_HEIGHT, EPS)
+	assert_almost_eq(_camera.size, _camera.orbit.distance, EPS)
+
+
+func test_input_is_ignored_during_the_transition() -> void:
+	_camera.set_plan_mode(true)
+	var before := _camera.orbit.distance
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	_camera._unhandled_input(wheel)
+	assert_eq(_camera.orbit.distance, before)

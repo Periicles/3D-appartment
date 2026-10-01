@@ -18,6 +18,8 @@ const FOCUS_SECONDS := 0.4
 const VIEW_TRANSITION_SECONDS := 0.4
 ## Height of the plan camera above the target; far above any wall.
 const PLAN_HEIGHT := 60.0
+## Lowest camera height during the view transition; above the walls.
+const MIN_TRANSITION_HEIGHT := 3.0
 ## Looking down (-y) with the screen's up towards -z.
 const PLAN_BASIS := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
 
@@ -52,18 +54,27 @@ func set_plan_mode(plan: bool, animate: bool = true) -> void:
 	if plan == _plan:
 		return
 	_plan = plan
+	var in_flight := _view_tween != null and _view_tween.is_running()
 	if _view_tween:
 		_view_tween.kill()
-	var target := _pose()
 	if not animate or not is_inside_tree():
 		_finish_view_change()
 	else:
-		# The move happens in perspective; the plan switches to orthographic on arrival.
+		# The move happens in perspective, at the height where the perspective view
+		# covers the orthographic scale, so switching projection causes no zoom jump.
 		projection = Camera3D.PROJECTION_PERSPECTIVE
+		if not plan and not in_flight:
+			transform = _transition_pose()
 		_view_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-		_view_tween.tween_property(self, "transform", target, VIEW_TRANSITION_SECONDS)
+		var destination := _transition_pose() if plan else orbit.camera_transform()
+		_view_tween.tween_property(self, "transform", destination, VIEW_TRANSITION_SECONDS)
 		_view_tween.tween_callback(_finish_view_change)
 	view_mode_changed.emit(plan)
+
+
+## Camera height at which a perspective view shows the same extent as an orthographic one.
+static func plan_transition_height(ortho_size: float, fov_deg: float) -> float:
+	return maxf(ortho_size / (2.0 * tan(deg_to_rad(fov_deg) / 2.0)), MIN_TRANSITION_HEIGHT)
 
 
 func toggle_plan_mode() -> void:
@@ -76,6 +87,8 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _view_tween and _view_tween.is_running():
+		return
 	if event is InputEventMouseMotion:
 		var panning: bool = event.button_mask & MOUSE_BUTTON_MASK_MIDDLE \
 				or (event.button_mask & MOUSE_BUTTON_MASK_RIGHT and event.shift_pressed)
@@ -158,6 +171,10 @@ func _pose() -> Transform3D:
 	if _plan:
 		return Transform3D(PLAN_BASIS, orbit.target + Vector3.UP * PLAN_HEIGHT)
 	return orbit.camera_transform()
+
+
+func _transition_pose() -> Transform3D:
+	return Transform3D(PLAN_BASIS, orbit.target + Vector3.UP * plan_transition_height(orbit.distance, fov))
 
 
 func _finish_view_change() -> void:
