@@ -30,6 +30,14 @@ func get_wall(id: String) -> Wall:
 	return null
 
 
+## The wall joining two nodes, in either direction, or null.
+func find_wall_between(node_a: String, node_b: String) -> Wall:
+	for wall in walls:
+		if (wall.a == node_a and wall.b == node_b) or (wall.a == node_b and wall.b == node_a):
+			return wall
+	return null
+
+
 ## Returns -1.0 when either endpoint is missing from the graph.
 func wall_length(wall: Wall) -> float:
 	var a := get_plan_node(wall.a)
