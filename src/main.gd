@@ -1,8 +1,8 @@
 extends Node3D
 ## Application root: lighting, camera, the 3D view of the open project, the
-## furniture tool, the collapsible side panels and the shortcuts help.
+## furniture tool, the collapsible side panels, the shortcuts help and the
+## File menu (with autosave).
 
-const DEFAULT_PROJECT := "res://data/log16.json"
 const SUN_ROTATION_DEG := Vector3(-50, -40, 0)
 const SUN_COLOR := Color("#ffe6c7")
 const SUN_ENERGY := 1.6
@@ -15,8 +15,10 @@ const SHADOW_MAX_DISTANCE := 40.0
 const HELP_BUTTON_MARGIN := 12.0
 const HELP_BUTTON_SIZE := 36.0
 
-## Where interface preferences are kept; tests point it elsewhere.
+## Where preferences and the autosave are kept; tests point them elsewhere.
 var settings_path := UiSettings.DEFAULT_PATH
+var autosave_project_path := Autosave.PROJECT_PATH
+var autosave_meta_path := Autosave.META_PATH
 
 var _view: WorldView
 var _camera: OrbitCamera
@@ -27,10 +29,15 @@ var _ui_root: Control
 var _catalog_side: CollapsibleSide
 var _inspector_side: CollapsibleSide
 var _help: ShortcutsOverlay
+var _autosave: Autosave
+var _files: FileController
+var _welcome: WelcomeScreen
 
 
 func _ready() -> void:
 	_settings = UiSettings.load_from(settings_path)
+	# Closing the window asks first when there are unsaved changes.
+	get_tree().auto_accept_quit = false
 	add_child(_environment())
 	add_child(_sun())
 	_view = WorldView.new()
@@ -50,13 +57,28 @@ func _ready() -> void:
 	add_child(_tool)
 	_furniture.bind_store(ProjectStore)
 	_tool.setup(ProjectStore, _furniture, _camera)
+	_autosave = Autosave.new()
+	_autosave.project_path = autosave_project_path
+	_autosave.meta_path = autosave_meta_path
+	add_child(_autosave)
+	_files = FileController.new()
+	add_child(_files)
+	_welcome = WelcomeScreen.new()
+	_files.setup(ProjectStore, _autosave, _settings, settings_path, _welcome)
 	add_child(_ui())
 	_apply_ui_scale()
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	ProjectStore.project_loaded.connect(_on_project_loaded)
-	var errors := ProjectStore.load_from_file(DEFAULT_PROJECT)
-	if not errors.is_empty():
-		push_error("Chargement du plan impossible : %s" % "; ".join(errors))
+	_files.startup()
+
+
+func _exit_tree() -> void:
+	get_tree().auto_accept_quit = true
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and _files != null:
+		_files.request_quit()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -69,6 +91,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_inspector_side.toggle()
 		&"help":
 			_help.toggle()
+		&"welcome":
+			_files.show_welcome()
+		&"open":
+			_files.open()
+		&"save":
+			_files.save()
+		&"save_as":
+			_files.save_as()
 		&"zoom_in":
 			_change_zoom(_settings.zoom_in)
 		&"zoom_out":
@@ -129,10 +159,20 @@ func _ui() -> CanvasLayer:
 	_inspector_side.setup(properties, CollapsibleSide.Side.RIGHT, "Inspecteur")
 	_ui_root.add_child(_inspector_side)
 	_ui_root.add_child(_help_button())
+	_ui_root.add_child(_menu_bar())
+	_ui_root.add_child(_welcome)
 	_help = ShortcutsOverlay.new()
 	_help.build()
 	_ui_root.add_child(_help)
 	return layer
+
+
+## On macOS the File menu goes to the system menu bar; elsewhere it sits at the top centre.
+func _menu_bar() -> MenuBar:
+	var bar := _files.build_menu()
+	bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	return bar
 
 
 func _help_button() -> Button:

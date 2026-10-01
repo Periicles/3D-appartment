@@ -119,3 +119,19 @@ func test_rejects_furniture_with_zero_dimension() -> void:
 	var project := Fixtures.square_room()
 	project.furniture[0].size.y = 0.0
 	_assert_single_error(project, "meuble « f1 » : les dimensions")
+
+
+func test_rejects_ids_that_are_not_plain_names() -> void:
+	for bad in ["", "a b", "f/1", "x:y", "Ghost preview", "é1", "f1\n"]:
+		var project := Fixtures.square_room()
+		project.furniture[0].id = bad
+		var errors := ProjectValidator.validate(project)
+		assert_eq(errors.size(), 1, "%s → %s" % [bad, errors])
+		if errors.size() == 1:
+			assert_string_contains(errors[0], "identifiant invalide")
+
+
+func test_accepts_plain_ids() -> void:
+	var project := Fixtures.square_room()
+	project.furniture[0].id = "Sofa_2-b"
+	assert_eq(ProjectValidator.validate(project), PackedStringArray())

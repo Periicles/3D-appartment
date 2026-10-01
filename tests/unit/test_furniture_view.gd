@@ -80,11 +80,11 @@ func test_preview_moves_block_only() -> void:
 func test_ghost_is_translucent_and_follows() -> void:
 	_view.show_ghost(Vector3(1, 1, 1), Color.BLUE)
 	assert_true(_view.has_ghost())
-	var mat := (_view.get_node("Ghost/Box") as MeshInstance3D).material_override as StandardMaterial3D
+	var mat := (_view.get_node(FurnitureView.GHOST_NAME + "/Box") as MeshInstance3D).material_override as StandardMaterial3D
 	assert_almost_eq(mat.albedo_color.a, Palette.GHOST_ALPHA, EPS)
 	assert_eq(mat.transparency, BaseMaterial3D.TRANSPARENCY_ALPHA)
 	_view.move_ghost(Vector2(3, 4), 45.0)
-	assert_almost_eq((_view.get_node("Ghost") as Node3D).position, Vector3(3, 0, 4), Vector3(EPS, EPS, EPS))
+	assert_almost_eq((_view.get_node(FurnitureView.GHOST_NAME) as Node3D).position, Vector3(3, 0, 4), Vector3(EPS, EPS, EPS))
 	_view.hide_ghost()
 	await wait_physics_frames(1)
 	assert_false(_view.has_ghost())

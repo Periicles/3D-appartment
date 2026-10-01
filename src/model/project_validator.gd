@@ -3,6 +3,11 @@ extends RefCounted
 ## Checks the invariants a loaded or edited project must satisfy.
 ## Messages are shown to the user as-is, so they are in French.
 
+## Ids name scene nodes, so they must stay plain: letters, digits, "_" and "-".
+const ID_PATTERN := "^[A-Za-z0-9_-]+\\z"
+
+static var _id_regex := RegEx.create_from_string(ID_PATTERN)
+
 ## Tolerance for float noise when an opening sits exactly at a wall end.
 const LENGTH_EPSILON := 1e-4
 
@@ -33,6 +38,8 @@ static func validate(project: ProjectData) -> PackedStringArray:
 static func _check_unique_ids(label: String, entities: Array, errors: PackedStringArray) -> void:
 	var seen := {}
 	for entity in entities:
+		if _id_regex.search(entity.id) == null:
+			errors.append("%s « %s » : identifiant invalide (lettres, chiffres, _ et - uniquement)" % [label, entity.id])
 		if seen.has(entity.id):
 			errors.append("%s « %s » : identifiant en double" % [label, entity.id])
 		seen[entity.id] = true

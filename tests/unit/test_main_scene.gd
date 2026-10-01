@@ -4,24 +4,36 @@ extends GutTest
 
 const MainScene := preload("res://src/main.tscn")
 const SETTINGS_PATH := "user://test_main_settings.cfg"
+const AUTOSAVE_PATH := "user://test_main_autosave.json"
+const AUTOSAVE_META_PATH := "user://test_main_autosave.cfg"
 const EPS := 1e-4
 
 
+func _remove_test_files() -> void:
+	for path in [SETTINGS_PATH, AUTOSAVE_PATH, AUTOSAVE_META_PATH]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func before_each() -> void:
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
+	_remove_test_files()
 
 
 func after_each() -> void:
 	get_tree().root.content_scale_factor = 1.0
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
+	_remove_test_files()
 
 
-## The scene with its preferences redirected, so tests never touch the user's file.
-func _main() -> Node3D:
+## The scene with its preferences redirected, so tests never touch the user's
+## files; by default the log 16 is picked on the welcome page.
+func _main(open_template := true) -> Node3D:
 	var main: Node3D = MainScene.instantiate()
 	main.settings_path = SETTINGS_PATH
+	main.autosave_project_path = AUTOSAVE_PATH
+	main.autosave_meta_path = AUTOSAVE_META_PATH
 	add_child_autofree(main)
 	await wait_physics_frames(1)
+	if open_template:
+		(main.find_child("FileController", true, false) as FileController).new_from_template()
 	return main
 
 
@@ -136,3 +148,59 @@ func test_h_still_cycles_the_cutaway_mode() -> void:
 	var view := main.get_node("World") as WorldView
 	_press(main, KEY_H)
 	assert_eq(view.cutaway_mode, Cutaway.Mode.FULL)
+
+
+
+func test_starts_on_the_welcome_page() -> void:
+	var main := await _main(false)
+	var welcome := main.find_child("Welcome", true, false) as WelcomeScreen
+	assert_true(welcome.visible)
+	assert_false(welcome.can_close)
+
+
+func test_picking_the_template_shows_the_log16_untitled() -> void:
+	var main := await _main()
+	assert_false((main.find_child("Welcome", true, false) as WelcomeScreen).visible)
+	assert_eq(ProjectStore.project.rooms.size(), 7)
+	assert_eq(ProjectStore.current_path, "")
+
+
+func test_command_shift_o_reopens_the_welcome_page() -> void:
+	var main := await _main()
+	var event := InputEventKey.new()
+	event.pressed = true
+	event.keycode = KEY_O
+	event.ctrl_pressed = true
+	event.meta_pressed = true
+	event.shift_pressed = true
+	main._unhandled_key_input(event)
+	assert_true((main.find_child("Welcome", true, false) as WelcomeScreen).visible)
+
+
+func test_file_menu_and_controller_are_present() -> void:
+	var main := await _main()
+	assert_not_null(main.find_child("FileController", true, false))
+	assert_not_null(main.find_child("MenuBar", true, false))
+
+
+func test_command_s_and_o_reach_the_file_controller() -> void:
+	var main := await _main()
+	var files := main.find_child("FileController", true, false) as FileController
+	var modes := []
+	files.path_picker = func(mode: FileDialog.FileMode, _done: Callable) -> void: modes.append(mode)
+	_press(main, KEY_S, true)
+	_press(main, KEY_O, true)
+	assert_eq(modes, [FileDialog.FILE_MODE_SAVE_FILE, FileDialog.FILE_MODE_OPEN_FILE])
+
+
+func test_closing_the_window_with_unsaved_changes_asks_first() -> void:
+	var main := await _main()
+	var files := main.find_child("FileController", true, false) as FileController
+	var quits := [0]
+	files.quit_action = func() -> void: quits[0] += 1
+	ProjectStore.add_furniture(preload("res://tests/fixtures/project_fixtures.gd").sofa("f1"))
+	main._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	assert_true(files.is_confirming())
+	assert_eq(quits[0], 0)
+	files.answer_confirmation(&"discard")
+	assert_eq(quits[0], 1)
