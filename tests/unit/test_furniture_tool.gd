@@ -81,14 +81,14 @@ func test_placement_ghost_follows_mouse_on_the_grid() -> void:
 	_tool.begin_placement(load(SOFA_PRESET))
 	assert_true(_view.has_ghost())
 	_move(Vector2(2.013, 2.037))
-	var ghost := _view.get_node("Ghost") as Node3D
+	var ghost := _view.get_node(FurnitureView.GHOST_NAME) as Node3D
 	assert_almost_eq(ghost.position, Vector3(2.0, 0, 2.05), Vector3(EPS, EPS, EPS))
 
 
 func test_alt_disables_grid_snapping() -> void:
 	_tool.begin_placement(load(SOFA_PRESET))
 	_move(Vector2(2.013, 2.037), true)
-	assert_almost_eq((_view.get_node("Ghost") as Node3D).position, Vector3(2.013, 0, 2.037), Vector3(EPS, EPS, EPS))
+	assert_almost_eq((_view.get_node(FurnitureView.GHOST_NAME) as Node3D).position, Vector3(2.013, 0, 2.037), Vector3(EPS, EPS, EPS))
 
 
 func test_click_places_item_and_selects_it() -> void:
@@ -110,7 +110,7 @@ func test_click_places_item_and_selects_it() -> void:
 func test_ghost_snaps_against_a_wall() -> void:
 	_tool.begin_placement(load(SOFA_PRESET))
 	_move(Vector2(2, 0.62))
-	var ghost := _view.get_node("Ghost") as Node3D
+	var ghost := _view.get_node(FurnitureView.GHOST_NAME) as Node3D
 	assert_almost_eq(ghost.position, Vector3(2, 0, 0.55), Vector3(EPS, EPS, EPS))
 
 
@@ -244,7 +244,7 @@ func test_user_rotation_survives_a_wall_touch_while_placing() -> void:
 	_tool.begin_placement(load(SOFA_PRESET))
 	_move(Vector2(2, 2))
 	_key(KEY_R)
-	var ghost := _view.get_node("Ghost") as Node3D
+	var ghost := _view.get_node(FurnitureView.GHOST_NAME) as Node3D
 	assert_almost_eq(ghost.rotation_degrees.y, 90.0, EPS)
 	_move(Vector2(2, 0.62))
 	assert_almost_eq(ghost.rotation_degrees.y, 0.0, EPS)

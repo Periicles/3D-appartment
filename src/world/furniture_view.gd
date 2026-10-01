@@ -3,7 +3,8 @@ extends Node3D
 ## Draws furniture items as coloured blocks, the selection outline, and the
 ## translucent ghost used while placing a new item. Never edits the project.
 
-const GHOST_NAME := "Ghost"
+## Contains a space, which ProjectValidator forbids in ids, so it never clashes with an item.
+const GHOST_NAME := "Ghost preview"
 
 var _selected_id := ""
 var _outline := Palette.outline_material()
