@@ -12,6 +12,7 @@ var _floors: Node3D
 var _center := Vector2.ZERO
 var _last_forward := Vector2.ZERO
 var _lowered := {}  # wall id -> bool, to tween only on change
+var _tweens := {}  # wall id -> Tween, so a new move replaces the running one
 
 
 func show_project(project: ProjectData) -> void:
@@ -25,6 +26,7 @@ func show_project(project: ProjectData) -> void:
 	add_child(_walls)
 	_center = Cutaway.apartment_center(project)
 	_lowered.clear()
+	_tweens.clear()
 	_last_forward = Vector2.ZERO
 
 
@@ -49,4 +51,9 @@ func update_cutaway(camera_forward: Vector2) -> void:
 			continue
 		_lowered[wall.id] = lowered
 		var target := Cutaway.target_scale(cutaway_mode, lowered, wall.height)
-		create_tween().tween_property(node, "scale:y", target, CUTAWAY_TWEEN_SECONDS)
+		var running: Tween = _tweens.get(wall.id)
+		if running:
+			running.kill()
+		var tween := create_tween()
+		tween.tween_property(node, "scale:y", target, CUTAWAY_TWEEN_SECONDS)
+		_tweens[wall.id] = tween

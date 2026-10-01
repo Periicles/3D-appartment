@@ -23,13 +23,11 @@ static func is_lowered(wall_start: Vector2, wall_end: Vector2, apartment_center:
 
 ## Vertical scale for a wall of `wall_height` in the given mode.
 static func target_scale(mode: Mode, lowered: bool, wall_height: float) -> float:
-	match mode:
-		Mode.FULL:
-			return 1.0
-		Mode.ALL_LOWERED:
-			return LOWERED_HEIGHT / wall_height
-		_:
-			return LOWERED_HEIGHT / wall_height if lowered else 1.0
+	if mode == Mode.FULL or wall_height <= 0.0:
+		return 1.0
+	if mode == Mode.ALL_LOWERED or lowered:
+		return minf(1.0, LOWERED_HEIGHT / wall_height)
+	return 1.0
 
 
 static func apartment_center(project: ProjectData) -> Vector2:

@@ -27,6 +27,25 @@ func _drag(mask: MouseButtonMask) -> InputEventMouseMotion:
 	return event
 
 
+func _shift_drag(mask: MouseButtonMask) -> InputEventMouseMotion:
+	var event := _drag(mask)
+	event.shift_pressed = true
+	return event
+
+
+func _scroll(shift: bool) -> InputEventPanGesture:
+	var event := InputEventPanGesture.new()
+	event.delta = DRAG
+	event.shift_pressed = shift
+	return event
+
+
+func _pinch(factor: float) -> InputEventMagnifyGesture:
+	var event := InputEventMagnifyGesture.new()
+	event.factor = factor
+	return event
+
+
 func _double_click(at: Vector2) -> InputEventMouseButton:
 	var event := _wheel(MOUSE_BUTTON_LEFT)
 	event.double_click = true
@@ -87,3 +106,53 @@ func test_double_click_without_project_does_nothing() -> void:
 	_camera._unhandled_input(_double_click(Vector2(100, 100)))
 	await wait_seconds(FOCUS_WAIT)
 	assert_eq(_camera.orbit.target, before)
+
+
+func test_two_finger_scroll_rotates() -> void:
+	var yaw := _camera.orbit.yaw_deg
+	var pitch := _camera.orbit.pitch_deg
+	var target := _camera.orbit.target
+	_camera._unhandled_input(_scroll(false))
+	assert_lt(angle_difference(deg_to_rad(yaw), deg_to_rad(_camera.orbit.yaw_deg)), 0.0,
+		"positive delta.x turns yaw down, like right-drag")
+	assert_lt(_camera.orbit.pitch_deg, pitch)
+	assert_eq(_camera.orbit.target, target)
+
+
+func test_shift_two_finger_scroll_pans() -> void:
+	var yaw := _camera.orbit.yaw_deg
+	var target := _camera.orbit.target
+	_camera._unhandled_input(_scroll(true))
+	assert_ne(_camera.orbit.target, target)
+	assert_eq(_camera.orbit.yaw_deg, yaw)
+
+
+func test_pinch_out_zooms_in() -> void:
+	var before := _camera.orbit.distance
+	_camera._unhandled_input(_pinch(1.2))
+	assert_lt(_camera.orbit.distance, before)
+
+
+func test_pinch_in_zooms_out() -> void:
+	var before := _camera.orbit.distance
+	_camera._unhandled_input(_pinch(0.8))
+	assert_gt(_camera.orbit.distance, before)
+
+
+func test_shift_right_drag_pans_without_rotating() -> void:
+	var yaw := _camera.orbit.yaw_deg
+	var target := _camera.orbit.target
+	_camera._unhandled_input(_shift_drag(MOUSE_BUTTON_MASK_RIGHT))
+	assert_eq(_camera.orbit.yaw_deg, yaw)
+	assert_ne(_camera.orbit.target, target)
+
+
+func test_new_focus_replaces_the_running_one() -> void:
+	_camera.frame_project(Fixtures.square_room())
+	_camera.orbit.target = Vector3(10, 0, 10)
+	_camera._apply()
+	var click_at := _camera.unproject_position(ROOM_CENTER)
+	_camera._unhandled_input(_double_click(click_at))
+	var first: Tween = _camera._focus_tween
+	_camera._unhandled_input(_double_click(click_at))
+	assert_false(first.is_valid(), "previous focus tween is killed")

@@ -53,7 +53,7 @@ func _environment() -> WorldEnvironment:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = AMBIENT_ENERGY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 0.85
+	env.tonemap_exposure = 0.7
 	env.ssao_enabled = true
 	env.ssao_intensity = 2.5
 	env.glow_enabled = true

@@ -3,6 +3,7 @@ extends GutTest
 const Fixtures := preload("res://tests/fixtures/project_fixtures.gd")
 const LOOKING_NORTH := Vector2(0, -1)
 const SLIGHTLY_ROTATED := Vector2(0.1, -1.0)
+const CUTAWAY_HALF := WorldView.CUTAWAY_TWEEN_SECONDS / 2.0
 const TWEEN_WAIT := WorldView.CUTAWAY_TWEEN_SECONDS + 0.15
 
 var _view: WorldView
@@ -94,3 +95,14 @@ func test_update_before_any_project_is_harmless() -> void:
 	var empty: WorldView = add_child_autofree(WorldView.new())
 	empty.update_cutaway(LOOKING_NORTH)
 	assert_eq(empty.get_child_count(), 0)
+
+
+func test_quick_reversal_ends_at_last_requested_scale() -> void:
+	_view.update_cutaway(LOOKING_NORTH)
+	await wait_seconds(CUTAWAY_HALF)
+	var first: Tween = _view._tweens["w3"]
+	_view.cycle_cutaway_mode()
+	_view.update_cutaway(LOOKING_NORTH)
+	assert_false(first.is_valid(), "previous tween is killed")
+	await wait_seconds(TWEEN_WAIT)
+	assert_eq(_scale_y("w3"), 1.0)

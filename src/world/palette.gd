@@ -6,9 +6,9 @@ const WALL := Color("#f2ede4")
 const WALL_TOP := Color("#8f8478")
 const GLASS := Color(0.75, 0.88, 0.95, 0.35)
 const FLOORS := {
-	"wood": Color("#d9b48a"),
-	"tile": Color("#d6d6d2"),
-	"outdoor": Color("#c4bcb0"),
+	"wood": Color("#c99a6b"),
+	"tile": Color("#c9ccd0"),
+	"outdoor": Color("#a9a39a"),
 }
 const FLOOR_FALLBACK := Color("#cccccc")
 

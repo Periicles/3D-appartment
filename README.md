@@ -19,8 +19,11 @@ Au lancement, l'application ouvre le plan du log 16 (`data/log16.json`).
 | Action | Contrôle |
 |---|---|
 | Tourner autour | Clic droit + glisser |
-| Se déplacer | Clic molette + glisser |
+| Se déplacer | Clic molette + glisser, ou Maj + clic droit + glisser |
 | Zoomer | Molette |
+| Tourner (trackpad) | Deux doigts |
+| Se déplacer (trackpad) | Maj + deux doigts |
+| Zoomer (trackpad) | Pincer |
 | Centrer sur une pièce | Double-clic sur son sol |
 | Masquage des murs (auto / complets / tous abaissés) | H |
 

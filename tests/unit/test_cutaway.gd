@@ -39,7 +39,12 @@ func test_target_scale_per_mode() -> void:
 
 
 func test_low_walls_are_never_raised_above_their_height() -> void:
+	assert_eq(Cutaway.target_scale(Cutaway.Mode.ALL_LOWERED, false, 0.1), 1.0)
 	assert_almost_eq(Cutaway.target_scale(Cutaway.Mode.ALL_LOWERED, false, 1.0), 0.2, 1e-6)
+
+
+func test_zero_height_wall_keeps_unit_scale() -> void:
+	assert_eq(Cutaway.target_scale(Cutaway.Mode.ALL_LOWERED, true, 0.0), 1.0)
 
 
 func test_apartment_center_is_bounding_box_center() -> void:
