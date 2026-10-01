@@ -171,3 +171,10 @@ func test_properties_form_scrolls_when_the_window_is_short() -> void:
 	var scroll := panel.get_child(0) as ScrollContainer
 	assert_not_null(scroll)
 	assert_not_null(scroll.find_child("Width", true, false))
+
+
+func test_side_panels_are_padded() -> void:
+	var catalog: CatalogPanel = add_child_autofree(CatalogPanel.new())
+	var properties := _properties()
+	for panel in [catalog, properties]:
+		assert_gt((panel as PanelContainer).get_theme_stylebox("panel").content_margin_left, 0.0)

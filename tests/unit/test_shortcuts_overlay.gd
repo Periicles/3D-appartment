@@ -64,3 +64,16 @@ func test_close_button_closes_it() -> void:
 
 func test_blocks_clicks_to_the_scene_while_open() -> void:
 	assert_eq((_overlay.get_node("Backdrop") as Control).mouse_filter, Control.MOUSE_FILTER_STOP)
+
+
+func test_card_uses_most_of_the_window_height() -> void:
+	_overlay.open()
+	await wait_physics_frames(2)
+	var card := _overlay.find_child("Card", true, false) as Control
+	assert_gt(card.size.y, _overlay.size.y * 0.7)
+
+
+func test_card_is_padded() -> void:
+	var card := _overlay.find_child("Card", true, false) as PanelContainer
+	var style := card.get_theme_stylebox("panel")
+	assert_gt(style.content_margin_left, 0.0)

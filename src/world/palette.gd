@@ -7,6 +7,9 @@ const WALL_TOP := Color("#8f8478")
 const GLASS := Color(0.75, 0.88, 0.95, 0.35)
 const SELECTION := Color("#ffd27a")
 const GHOST_ALPHA := 0.5
+const PANEL_BACKGROUND := Color(0.16, 0.15, 0.15, 0.92)
+const PANEL_PADDING := 10.0
+const PANEL_RADIUS := 6
 ## How far the selection outline grows around the item, in metres.
 const OUTLINE_WIDTH := 0.03
 const FLOORS := {
@@ -40,3 +43,12 @@ static func outline_material() -> StandardMaterial3D:
 	mat.grow = true
 	mat.grow_amount = OUTLINE_WIDTH
 	return mat
+
+
+## Background shared by the interface panels: dark, slightly transparent, padded.
+static func panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_BACKGROUND
+	style.set_content_margin_all(PANEL_PADDING)
+	style.set_corner_radius_all(PANEL_RADIUS)
+	return style

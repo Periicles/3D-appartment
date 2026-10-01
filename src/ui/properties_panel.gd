@@ -25,6 +25,7 @@ var _rotation: SpinBox
 func _init() -> void:
 	name = "Properties"
 	custom_minimum_size.x = PANEL_WIDTH
+	add_theme_stylebox_override("panel", Palette.panel_style())
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)

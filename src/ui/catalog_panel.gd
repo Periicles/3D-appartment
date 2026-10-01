@@ -10,6 +10,7 @@ const PANEL_WIDTH := 220.0
 func _init() -> void:
 	name = "Catalog"
 	custom_minimum_size.x = PANEL_WIDTH
+	add_theme_stylebox_override("panel", Palette.panel_style())
 
 
 func populate(presets: Array[FurniturePreset]) -> void:

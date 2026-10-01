@@ -27,15 +27,19 @@ func build(mac: bool = Shortcuts.is_mac()) -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	backdrop.gui_input.connect(_on_backdrop_input)
 	add_child(backdrop)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.offset_top = CARD_MARGIN
-	center.offset_bottom = -CARD_MARGIN
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
 	var card := PanelContainer.new()
-	card.custom_minimum_size.x = CARD_WIDTH
-	center.add_child(card)
+	card.name = "Card"
+	card.add_theme_stylebox_override("panel", Palette.panel_style())
+	# Centred horizontally, full height minus a margin, so the list rarely scrolls.
+	card.anchor_left = 0.5
+	card.anchor_right = 0.5
+	card.anchor_top = 0.0
+	card.anchor_bottom = 1.0
+	card.offset_left = -CARD_WIDTH / 2.0
+	card.offset_right = CARD_WIDTH / 2.0
+	card.offset_top = CARD_MARGIN
+	card.offset_bottom = -CARD_MARGIN
+	add_child(card)
 	var layout := VBoxContainer.new()
 	card.add_child(layout)
 	var header := HBoxContainer.new()
@@ -51,7 +55,6 @@ func build(mac: bool = Shortcuts.is_mac()) -> void:
 	header.add_child(close_button)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size.y = 420
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(scroll)
 	var list := VBoxContainer.new()
