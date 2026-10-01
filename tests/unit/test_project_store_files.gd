@@ -138,3 +138,37 @@ func test_saving_over_an_existing_file_replaces_its_content() -> void:
 	assert_eq(other.load_from_file(SAVE_PATH), PackedStringArray())
 	assert_eq(other.project.furniture.size(), 1)
 	assert_false(FileAccess.file_exists(SAVE_PATH + ".tmp"))
+
+
+func test_saved_state_is_not_confused_with_a_different_edit_after_undo() -> void:
+	_store.add_furniture(Fixtures.sofa("f1"))
+	_store.save_to_file(SAVE_PATH)
+	_store.undo()
+	_store.add_furniture(Fixtures.sofa("f2"))
+	assert_true(_store.is_dirty(), "the content differs from what was saved")
+	_store.undo()
+	_store.redo()
+	assert_true(_store.is_dirty(), "stays dirty: the saved state is gone")
+
+
+func test_undo_then_redo_returns_to_the_saved_state() -> void:
+	_store.add_furniture(Fixtures.sofa("f1"))
+	_store.save_to_file(SAVE_PATH)
+	_store.undo()
+	assert_true(_store.is_dirty())
+	_store.redo()
+	assert_false(_store.is_dirty())
+
+
+func test_every_kind_of_edit_after_undo_discards_the_saved_state() -> void:
+	_store.add_furniture(Fixtures.sofa("f1"))
+	_store.add_furniture(Fixtures.sofa("f2"))
+	for edit in [
+		func() -> void: _store.add_furniture(Fixtures.sofa("f3")),
+		func() -> void: _store.update_furniture("f1", {"name": "Autre"}),
+		func() -> void: _store.remove_furniture("f1"),
+	]:
+		_store.save_to_file(SAVE_PATH)
+		_store.undo()
+		edit.call()
+		assert_true(_store.is_dirty())

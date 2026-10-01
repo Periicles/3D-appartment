@@ -11,6 +11,9 @@ const UNTITLED := "Sans titre"
 const TEMPLATE_PATH := "res://data/log16.json"
 const EXTENSION := "json"
 const FILE_FILTER := "*.json ; Projets 3D Appartment"
+const KEPT_HINT := "Le fichier a été conservé : %s"
+const AUTOSAVE_FAILED_TITLE := "Sauvegarde automatique impossible"
+const AUTOSAVE_FAILED_HINT := "Pensez à enregistrer votre projet (⌘S)."
 const UNSAVED_HINT := "Vos modifications restent en mémoire et dans la sauvegarde automatique."
 
 var store: Node
@@ -31,6 +34,7 @@ var _file_dialog: FileDialog
 var _after_confirm: Callable
 ## Whether a project has been opened since launch (the welcome page can be closed).
 var _has_project := false
+var _autosave_failure_shown := false
 
 
 func _init() -> void:
@@ -51,6 +55,7 @@ func setup(p_store: Node, p_autosave: Autosave, p_settings: UiSettings, p_settin
 	welcome.open_file_chosen.connect(open)
 	welcome.restore_chosen.connect(answer_restore.bind(&"restore"))
 	welcome.restore_ignored.connect(answer_restore.bind(&"ignore"))
+	autosave.write_failed.connect(_on_autosave_write_failed)
 	if not quit_action.is_valid():
 		quit_action = get_tree().quit
 	_build_dialogs()
@@ -111,22 +116,30 @@ func on_menu(id: int) -> void:
 
 
 func new_empty() -> void:
+	if is_offering_restore():
+		return
 	_confirm_discard(func() -> void:
 		store.new_project()
 		_project_ready())
 
 
 func new_from_template() -> void:
+	if is_offering_restore():
+		return
 	_confirm_discard(func() -> void:
 		if _report("Ouverture impossible", store.load_from_file(template_path, true)):
 			_project_ready())
 
 
 func open() -> void:
+	if is_offering_restore():
+		return
 	_confirm_discard(func() -> void: path_picker.call(FileDialog.FILE_MODE_OPEN_FILE, _open_path))
 
 
 func open_recent(path: String) -> void:
+	if is_offering_restore():
+		return
 	_confirm_discard(_open_path.bind(path))
 
 
@@ -137,16 +150,24 @@ func forget_recent(path: String) -> void:
 
 
 func save() -> void:
+	if is_offering_restore():
+		return
 	_save_then(Callable())
 
 
 func save_as() -> void:
+	if is_offering_restore():
+		return
 	path_picker.call(FileDialog.FILE_MODE_SAVE_FILE, _save_to)
 
 
 func request_quit() -> void:
+	# Only work the user chose to throw away is dropped: an undecided crash copy
+	# (store clean, restore card shown) must survive the quit.
+	var discarding: bool = store.is_dirty()
 	_confirm_discard(func() -> void:
-		autosave.clear()
+		if discarding:
+			autosave.clear()
 		quit_action.call())
 
 
@@ -184,10 +205,16 @@ func answer_confirmation(choice: StringName) -> void:
 ## Answers the restore card of the welcome page: &"restore" or &"ignore".
 func answer_restore(choice: StringName) -> void:
 	if choice == &"restore":
-		if _report("Restauration impossible", autosave.restore_into(store)):
+		var errors := autosave.restore_into(store)
+		if errors.is_empty():
 			_project_ready()
 			return
-	autosave.clear()
+		var kept := autosave.set_aside()
+		if kept != "":
+			errors.append(KEPT_HINT % kept)
+		_report("Restauration impossible", errors)
+	else:
+		autosave.clear()
 	show_welcome()
 
 
@@ -246,6 +273,14 @@ func _report(title: String, errors: PackedStringArray) -> bool:
 	_error.dialog_text = "\n".join(errors)
 	_error.popup_centered()
 	return false
+
+
+## Tells the user once per session; later failures would only repeat it.
+func _on_autosave_write_failed(error: Error) -> void:
+	if _autosave_failure_shown:
+		return
+	_autosave_failure_shown = true
+	_report(AUTOSAVE_FAILED_TITLE, PackedStringArray([error_string(error), AUTOSAVE_FAILED_HINT]))
 
 
 func _remember(path: String) -> void:

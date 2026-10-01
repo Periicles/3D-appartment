@@ -113,3 +113,9 @@ func test_malformed_recent_entries_are_skipped() -> void:
 	file.set_value("files", "recent_projects", [{"path": 3}, "x", {"path": "/ok.json", "opened_at": 5}])
 	file.save(PATH)
 	assert_eq(UiSettings.load_from(PATH).recent_projects, [{"path": "/ok.json", "opened_at": 5.0}])
+
+
+func test_save_leaves_no_temporary_file() -> void:
+	assert_eq(UiSettings.new().save_to(PATH), OK)
+	assert_true(FileAccess.file_exists(PATH))
+	assert_false(FileAccess.file_exists(PATH + ".tmp"))

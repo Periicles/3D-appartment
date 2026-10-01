@@ -38,7 +38,7 @@ func save_to(path: String = DEFAULT_PATH) -> Error:
 	var file := ConfigFile.new()
 	file.set_value(SECTION, "zoom", zoom)
 	file.set_value(FILES_SECTION, "recent_projects", recent_projects)
-	return file.save(path)
+	return AtomicFile.write(path, file.encode_to_text())
 
 
 ## Puts `path` first in the recent list (moving it if already there), keeping

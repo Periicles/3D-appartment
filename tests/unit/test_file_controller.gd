@@ -326,3 +326,60 @@ func test_menu_lists_the_spec_entries_and_routes_them() -> void:
 	_start_with_template()
 	menu.id_pressed.emit(FileController.MenuId.NEW_EMPTY)
 	assert_eq(_store.project.rooms.size(), 0)
+
+
+func _pending_copy_and_fresh_controller() -> FileController:
+	_start_with_template()
+	_dirty_edit()
+	_autosave.flush()
+	var next_files := _controller(autofree(Store.new()), UiSettings.new())
+	next_files.path_picker = _stub_picker
+	next_files.quit_action = func() -> void: _quit_count += 1
+	next_files.startup()
+	return next_files
+
+
+func test_quitting_while_a_restore_is_undecided_keeps_the_copy() -> void:
+	var next_files := _pending_copy_and_fresh_controller()
+	assert_true(next_files.is_offering_restore())
+	next_files.request_quit()
+	assert_eq(_quit_count, 1)
+	assert_true(_autosave.has_pending())
+
+
+func test_entry_points_do_nothing_while_the_restore_card_is_shown() -> void:
+	var next_files := _pending_copy_and_fresh_controller()
+	_picked = PROJECT_A
+	next_files.open()
+	next_files.save()
+	next_files.save_as()
+	next_files.new_empty()
+	next_files.new_from_template()
+	next_files.open_recent(PROJECT_A)
+	next_files.on_menu(FileController.MenuId.OPEN)
+	assert_eq(_picker_modes.size(), 0, "no picker was opened")
+	assert_true(next_files.welcome.visible)
+	assert_true(next_files.is_offering_restore())
+	assert_true(_autosave.has_pending())
+	assert_false(FileAccess.file_exists(PROJECT_A))
+
+
+func test_corrupt_copy_is_set_aside_not_deleted_when_restoring_fails() -> void:
+	var file := FileAccess.open(AUTOSAVE, FileAccess.WRITE)
+	file.store_string("{oops")
+	file.close()
+	_files.startup()
+	assert_true(_files.is_offering_restore())
+	_files.answer_restore(&"restore")
+	assert_string_contains(_files.shown_error(), "conservé")
+	assert_true(FileAccess.file_exists(DIR + "/autosave.corrupt.json"))
+	assert_false(_autosave.has_pending())
+	assert_true(_welcome.visible)
+
+
+func test_autosave_write_failure_is_shown_once() -> void:
+	_autosave.write_failed.emit(ERR_FILE_CANT_WRITE)
+	assert_string_contains(_files.shown_error(), "Pensez à enregistrer")
+	_files.find_child("Error", true, false).hide()
+	_autosave.write_failed.emit(ERR_FILE_CANT_WRITE)
+	assert_eq(_files.shown_error(), "", "not shown a second time")

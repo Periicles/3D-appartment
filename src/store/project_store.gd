@@ -108,7 +108,7 @@ func add_furniture(item: FurnitureItem) -> bool:
 	if get_furniture(item.id) != null or not _is_valid(item):
 		return false
 	var stored := item.copy()
-	_history.create_action("Ajouter %s" % stored.name)
+	_begin_action("Ajouter %s" % stored.name)
 	_history.add_do_method(_insert.bind(stored, project.furniture.size()))
 	_history.add_undo_method(_delete.bind(stored.id))
 	_history.commit_action()
@@ -130,7 +130,7 @@ func update_furniture(id: String, changes: Dictionary) -> bool:
 		preview.set(key, changes[key])
 	if not _is_valid(preview):
 		return false
-	_history.create_action("Modifier %s" % item.name)
+	_begin_action("Modifier %s" % item.name)
 	_history.add_do_method(_apply.bind(id, changes.duplicate()))
 	_history.add_undo_method(_apply.bind(id, previous))
 	_history.commit_action()
@@ -142,7 +142,7 @@ func remove_furniture(id: String) -> bool:
 	if item == null:
 		return false
 	var index := project.furniture.find(item)
-	_history.create_action("Supprimer %s" % item.name)
+	_begin_action("Supprimer %s" % item.name)
 	_history.add_do_method(_delete.bind(id))
 	_history.add_undo_method(_insert.bind(item.copy(), index))
 	_history.commit_action()
@@ -186,6 +186,15 @@ func _replace(new_project_data: ProjectData, path: String, dirty := false) -> vo
 	project_loaded.emit()
 	path_changed.emit(path)
 	dirty_changed.emit(dirty)
+
+
+## Opens an undo action. A new edit discards the redo branch; if the saved
+## state lives in it, the project can never be clean again (the version number
+## would be reused by different content).
+func _begin_action(action_name: String) -> void:
+	if _saved_version > _history.get_version():
+		_saved_version = -1
+	_history.create_action(action_name)
 
 
 func _on_version_changed() -> void:

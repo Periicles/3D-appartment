@@ -10,6 +10,7 @@ const PROJECT_PATH := "user://autosave.json"
 const META_PATH := "user://autosave.cfg"
 const DELAY_SECONDS := 2.0
 const SECTION := "autosave"
+const CORRUPT_SUFFIX := ".corrupt.json"
 
 var store: Node
 var project_path := PROJECT_PATH
@@ -71,6 +72,21 @@ func restore_into(target: Node) -> PackedStringArray:
 	if not has_pending():
 		return PackedStringArray(["aucune sauvegarde automatique"])
 	return target.restore_from_text(FileAccess.get_file_as_string(project_path), pending_source_path())
+
+
+## Moves an unreadable copy next to itself instead of deleting it, and forgets
+## it. Returns the absolute path of the kept file, or "" when there is nothing
+## to keep or the move failed (the copy then stays where it is).
+func set_aside() -> String:
+	if not has_pending():
+		return ""
+	var kept := ProjectSettings.globalize_path(project_path.get_basename() + CORRUPT_SUFFIX)
+	if FileAccess.file_exists(kept):
+		DirAccess.remove_absolute(kept)
+	if DirAccess.rename_absolute(ProjectSettings.globalize_path(project_path), kept) != OK:
+		return ""
+	clear()
+	return kept
 
 
 func clear() -> void:

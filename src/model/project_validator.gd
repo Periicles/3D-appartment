@@ -4,7 +4,7 @@ extends RefCounted
 ## Messages are shown to the user as-is, so they are in French.
 
 ## Ids name scene nodes, so they must stay plain: letters, digits, "_" and "-".
-const ID_PATTERN := "^[A-Za-z0-9_-]+$"
+const ID_PATTERN := "^[A-Za-z0-9_-]+\\z"
 
 static var _id_regex := RegEx.create_from_string(ID_PATTERN)
 

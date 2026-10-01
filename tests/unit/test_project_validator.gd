@@ -122,7 +122,7 @@ func test_rejects_furniture_with_zero_dimension() -> void:
 
 
 func test_rejects_ids_that_are_not_plain_names() -> void:
-	for bad in ["", "a b", "f/1", "x:y", "Ghost preview", "é1"]:
+	for bad in ["", "a b", "f/1", "x:y", "Ghost preview", "é1", "f1\n"]:
 		var project := Fixtures.square_room()
 		project.furniture[0].id = bad
 		var errors := ProjectValidator.validate(project)

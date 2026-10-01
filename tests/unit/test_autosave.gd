@@ -117,3 +117,28 @@ func test_timer_write_failure_is_signalled() -> void:
 	_store.add_furniture(Fixtures.sofa("f1"))
 	_autosave._timer.timeout.emit()
 	assert_signal_emitted(_autosave, "write_failed")
+
+
+func test_set_aside_moves_the_copy_to_a_corrupt_file_and_forgets_it() -> void:
+	_store.add_furniture(Fixtures.sofa("f1"))
+	_autosave.flush()
+	var kept := _autosave.set_aside()
+	assert_false(_autosave.has_pending())
+	assert_false(FileAccess.file_exists(META))
+	assert_true(FileAccess.file_exists(kept))
+	assert_true(kept.ends_with(".corrupt.json"))
+	assert_true(kept.begins_with("/"), "an absolute path the user can open")
+
+
+func test_set_aside_replaces_an_older_corrupt_copy() -> void:
+	for text in ["first", "second"]:
+		var file := FileAccess.open(PROJECT, FileAccess.WRITE)
+		file.store_string(text)
+		file.close()
+		var kept := _autosave.set_aside()
+		assert_eq(FileAccess.get_file_as_string(kept), text)
+	_remove(PROJECT.get_basename() + ".corrupt.json")
+
+
+func test_set_aside_without_a_copy_returns_nothing() -> void:
+	assert_eq(_autosave.set_aside(), "")
