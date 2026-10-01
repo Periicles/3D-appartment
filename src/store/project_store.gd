@@ -64,9 +64,7 @@ func restore_from_text(text: String, original_path: String) -> PackedStringArray
 	var result := ProjectSerializer.from_json(text)
 	if not result.is_ok():
 		return result.errors
-	_replace(result.project, original_path)
-	_saved_version = -1
-	dirty_changed.emit(true)
+	_replace(result.project, original_path, true)
 	return PackedStringArray()
 
 
@@ -179,14 +177,15 @@ func can_redo() -> bool:
 	return _history.has_redo()
 
 
-func _replace(new_project_data: ProjectData, path: String) -> void:
+func _replace(new_project_data: ProjectData, path: String, dirty := false) -> void:
 	project = new_project_data
 	current_path = path
-	_history.clear_history()
-	_saved_version = _history.get_version()
+	# Without a version bump: clearing is not an edit.
+	_history.clear_history(false)
+	_saved_version = -1 if dirty else _history.get_version()
 	project_loaded.emit()
 	path_changed.emit(path)
-	dirty_changed.emit(false)
+	dirty_changed.emit(dirty)
 
 
 func _on_version_changed() -> void:
@@ -200,7 +199,11 @@ static func _write_atomically(path: String, text: String) -> Error:
 	if file == null:
 		return FileAccess.get_open_error()
 	file.store_string(text)
+	var write_error := file.get_error()
 	file.close()
+	if write_error != OK:
+		DirAccess.remove_absolute(temporary)
+		return write_error
 	var error := DirAccess.rename_absolute(temporary, path)
 	if error != OK:
 		DirAccess.remove_absolute(temporary)

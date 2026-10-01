@@ -110,3 +110,31 @@ func test_restore_of_broken_text_keeps_the_current_project() -> void:
 	_store.load_from_file(LOG16)
 	assert_false(_store.restore_from_text("{oops", "").is_empty())
 	assert_eq(_store.current_path, LOG16)
+
+
+func test_opening_emits_no_edit_and_one_clean_dirty_signal() -> void:
+	watch_signals(_store)
+	_store.load_from_file(LOG16)
+	assert_signal_not_emitted(_store, "edited")
+	assert_signal_emit_count(_store, "dirty_changed", 1)
+	assert_signal_emitted_with_parameters(_store, "dirty_changed", [false])
+
+
+func test_restore_emits_one_dirty_signal_and_is_dirty_when_loaded() -> void:
+	var dirty_at_load: Array[bool] = []
+	_store.project_loaded.connect(func() -> void: dirty_at_load.append(_store.is_dirty()))
+	watch_signals(_store)
+	_store.restore_from_text(ProjectSerializer.to_json(Fixtures.square_room()), "")
+	assert_signal_emit_count(_store, "dirty_changed", 1)
+	assert_signal_emitted_with_parameters(_store, "dirty_changed", [true])
+	assert_eq(dirty_at_load, [true] as Array[bool])
+
+
+func test_saving_over_an_existing_file_replaces_its_content() -> void:
+	_store.save_to_file(SAVE_PATH)
+	_store.add_furniture(Fixtures.sofa("f1"))
+	assert_eq(_store.save_to_file(SAVE_PATH), PackedStringArray())
+	var other: Node = autofree(Store.new())
+	assert_eq(other.load_from_file(SAVE_PATH), PackedStringArray())
+	assert_eq(other.project.furniture.size(), 1)
+	assert_false(FileAccess.file_exists(SAVE_PATH + ".tmp"))
