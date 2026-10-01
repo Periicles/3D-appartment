@@ -4,7 +4,7 @@ Outil desktop d'aménagement intérieur en 2D et 3D, construit avec Godot 4 (GDS
 
 ## Prérequis
 
-- [Godot 4.7](https://godotengine.org/) (`brew install --cask godot` sur macOS)
+- [Godot 4.7.2](https://godotengine.org/) (`brew install --cask godot` sur macOS)
 
 ## Lancer le projet
 

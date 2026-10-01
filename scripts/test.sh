@@ -6,10 +6,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Refresh Godot's global class cache so newly added `class_name` scripts resolve.
-godot --headless --path . --import > /dev/null
-
+import_log="$(mktemp)"
 output_file="$(mktemp)"
-trap 'rm -f "$output_file"' EXIT
+trap 'rm -f "$import_log" "$output_file"' EXIT
+
+import_status=0
+godot --headless --path . --import > "$import_log" 2>&1 || import_status=$?
+if [ "$import_status" -ne 0 ]; then
+	cat "$import_log" >&2
+	exit "$import_status"
+fi
 
 # GUT exits 0 when a test script fails to parse ("Nothing was run"), so scan its output too.
 set +e

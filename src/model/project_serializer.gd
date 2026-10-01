@@ -5,6 +5,8 @@ extends RefCounted
 
 const SCHEMA_VERSION := 1
 const _INDENT := "\t"
+## Alpha is not part of the file format, so only plain #rrggbb is accepted.
+const _COLOR_PATTERN := "^#[0-9a-fA-F]{6}$"
 
 
 static func to_json(project: ProjectData) -> String:
@@ -65,6 +67,8 @@ static func _project_from_dict(data: Dictionary) -> ProjectLoadResult:
 	var version = data.get("schema_version")
 	if not _is_number(version):
 		return ProjectLoadResult.failure(PackedStringArray(["« schema_version » manquant ou invalide"]))
+	if not is_equal_approx(version, floorf(version)):
+		return ProjectLoadResult.failure(PackedStringArray(["« schema_version » invalide : %s" % version]))
 	if int(version) > SCHEMA_VERSION:
 		return ProjectLoadResult.failure(PackedStringArray([
 			"fichier créé par une version plus récente (schéma %d, supporté : %d)" % [int(version), SCHEMA_VERSION],
@@ -78,12 +82,15 @@ static func _project_from_dict(data: Dictionary) -> ProjectLoadResult:
 	project.wall_height = r.number(data, "wall_height", "projet", ProjectData.DEFAULT_WALL_HEIGHT)
 	project.north_angle = r.number(data, "north_angle", "projet", 0.0)
 	if data.get("underlay") != null:
-		var raw := r.object(data, "underlay", "projet")
-		var underlay := Underlay.new()
-		underlay.image = r.text(raw, "image", "underlay")
-		underlay.meters_per_px = r.number(raw, "meters_per_px", "underlay")
-		underlay.offset = r.vector2(raw, "offset", "underlay")
-		project.underlay = underlay
+		if typeof(data["underlay"]) != TYPE_DICTIONARY:
+			r.object(data, "underlay", "projet")
+		else:
+			var raw: Dictionary = data["underlay"]
+			var underlay := Underlay.new()
+			underlay.image = r.text(raw, "image", "underlay")
+			underlay.meters_per_px = r.number(raw, "meters_per_px", "underlay")
+			underlay.offset = r.vector2(raw, "offset", "underlay")
+			project.underlay = underlay
 
 	r.each_object(data, "nodes", func(entry: Dictionary, ctx: String) -> void:
 		var node := PlanNode.new()
@@ -141,6 +148,15 @@ static func _project_from_dict(data: Dictionary) -> ProjectLoadResult:
 	return ProjectLoadResult.success(project)
 
 
+static var _color_regex := _compile_color_regex()
+
+
+static func _compile_color_regex() -> RegEx:
+	var regex := RegEx.new()
+	regex.compile(_COLOR_PATTERN)
+	return regex
+
+
 static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT
 
@@ -196,7 +212,7 @@ class _Reader:
 
 	func color(data: Dictionary, key: String, ctx: String) -> Color:
 		var value = data.get(key)
-		if typeof(value) == TYPE_STRING and Color.html_is_valid(value):
+		if typeof(value) == TYPE_STRING and ProjectSerializer._color_regex.search(value) != null:
 			return Color.html(value)
 		_fail(ctx, key, "doit être une couleur hexadécimale (#rrggbb)")
 		return Color.WHITE

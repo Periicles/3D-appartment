@@ -173,3 +173,29 @@ func test_rejects_invariant_violations() -> void:
 	var data := Fixtures.square_room_dict()
 	data["openings"][0]["offset"] = 3.9
 	_assert_rejected(_load(data), "dépasse du mur")
+
+
+func test_rejects_fractional_schema_version() -> void:
+	var data := Fixtures.square_room_dict()
+	data["schema_version"] = 1.5
+	_assert_rejected(_load(data), "« schema_version » invalide")
+
+
+func test_rejects_color_with_alpha_channel() -> void:
+	var data := Fixtures.square_room_dict()
+	data["furniture"][0]["color"] = "#c9a88aff"
+	_assert_rejected(_load(data), "« color »")
+
+
+func test_rejects_short_hex_color() -> void:
+	var data := Fixtures.square_room_dict()
+	data["furniture"][0]["color"] = "#fff"
+	_assert_rejected(_load(data), "« color »")
+
+
+func test_non_object_underlay_reports_a_single_error() -> void:
+	var data := Fixtures.square_room_dict()
+	data["underlay"] = 5
+	var result := _load(data)
+	_assert_rejected(result, "« underlay »")
+	assert_eq(result.errors.size(), 1, "errors: %s" % [result.errors])
