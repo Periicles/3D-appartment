@@ -17,3 +17,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [rendering]
 
 renderer/rendering_method="forward_plus"
+
+[autoload]
+
+ProjectStore="*res://src/store/project_store.gd"
