@@ -12,6 +12,17 @@ Outil desktop d'aménagement intérieur en 2D et 3D, construit avec Godot 4 (GDS
 godot --editor project.godot
 ```
 
+## Tests
+
+Les tests utilisent [GUT](https://github.com/bitwes/Gut), embarqué dans `addons/gut/`.
+
+```sh
+./scripts/test.sh                                   # toute la suite
+./scripts/test.sh -gselect=test_project_serializer  # un seul fichier
+```
+
+La CI (GitHub Actions) lance la suite sur chaque pull request.
+
 ## Workflow Git
 
 - `main` : branche de release uniquement.

@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+jobs:
+  gut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GODOT_VERSION: 4.7.2
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Godot
+        run: |
+          archive="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${archive}.zip"
+          unzip -q godot.zip
+          sudo mv "${archive}" /usr/local/bin/godot
+          godot --version
+
+      - name: Run tests
+        run: ./scripts/test.sh
