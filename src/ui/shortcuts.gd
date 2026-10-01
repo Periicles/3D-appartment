@@ -47,6 +47,12 @@ static func groups() -> Array[Dictionary]:
 			_entry(["cmd", "shift", "Z"], "Rétablir"),
 			_entry(["Échap"], "Abandonner l'ajout ou désélectionner"),
 		]),
+		_group("Fichier", [
+			_entry(["cmd", "shift", "O"], "Accueil : choisir un projet"),
+			_entry(["cmd", "O"], "Ouvrir un projet"),
+			_entry(["cmd", "S"], "Enregistrer"),
+			_entry(["cmd", "shift", "S"], "Enregistrer sous"),
+		]),
 		_group("Interface", [
 			_entry(["C"], "Afficher ou masquer le catalogue"),
 			_entry(["I"], "Afficher ou masquer l'inspecteur"),
@@ -61,12 +67,16 @@ static func groups() -> Array[Dictionary]:
 
 ## The interface action a key press triggers: &"toggle_catalog",
 ## &"toggle_inspector", &"help", &"cutaway", &"zoom_in", &"zoom_out",
-## &"zoom_reset", or &"" for none. Accepts the QWERTY and AZERTY variants.
+## &"zoom_reset", &"welcome", &"open", &"save", &"save_as", or &"" for none. Accepts the QWERTY and AZERTY variants.
 static func action_for(event: InputEventKey) -> StringName:
 	if not event.pressed or event.echo:
 		return &""
 	var character := char(event.unicode) if event.unicode > 0 else ""
 	if event.is_command_or_control_pressed():
+		if event.keycode == KEY_O:
+			return &"welcome" if event.shift_pressed else &"open"
+		if event.keycode == KEY_S:
+			return &"save_as" if event.shift_pressed else &"save"
 		if character in ["+", "="] or event.keycode in [KEY_PLUS, KEY_EQUAL, KEY_KP_ADD]:
 			return &"zoom_in"
 		if character == "-" or event.keycode in [KEY_MINUS, KEY_KP_SUBTRACT]:

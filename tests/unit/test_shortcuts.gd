@@ -17,7 +17,7 @@ func test_plain_tokens_are_kept() -> void:
 
 func test_groups_cover_camera_furniture_and_interface() -> void:
 	var titles: Array = Shortcuts.groups().map(func(g: Dictionary) -> String: return g.title)
-	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Interface"])
+	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Fichier", "Interface"])
 
 
 func test_every_entry_has_keys_and_action() -> void:
@@ -29,7 +29,7 @@ func test_every_entry_has_keys_and_action() -> void:
 
 
 func test_interface_group_lists_panel_help_and_zoom_keys() -> void:
-	var interface: Dictionary = Shortcuts.groups()[3]
+	var interface: Dictionary = Shortcuts.groups()[4]
 	var keys: Array = interface.entries.map(func(e: Dictionary) -> String: return Shortcuts.format_keys(e.keys, false))
 	for expected in ["C", "I", "? / F1", "Ctrl + +", "Ctrl + −", "Ctrl + 0", "H"]:
 		assert_has(keys, expected)
@@ -95,3 +95,12 @@ func test_released_and_repeated_keys_do_nothing() -> void:
 	var repeated := _key(KEY_C)
 	repeated.echo = true
 	assert_eq(Shortcuts.action_for(repeated), &"")
+
+
+
+func test_file_keys() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_O, 0, true)), &"open")
+	assert_eq(Shortcuts.action_for(_key(KEY_O, 0, true, true)), &"welcome")
+	assert_eq(Shortcuts.action_for(_key(KEY_S, 0, true)), &"save")
+	assert_eq(Shortcuts.action_for(_key(KEY_S, 0, true, true)), &"save_as")
+	assert_eq(Shortcuts.action_for(_key(KEY_S)), &"", "plain S does nothing")
