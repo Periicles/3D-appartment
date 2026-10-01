@@ -91,6 +91,7 @@ static func _solve_node(project: ProjectData, node: PlanNode, corners: Dictionar
 		lefts.append(node.pos + _left_normal(e.dir) * e.half)
 		rights.append(node.pos - _left_normal(e.dir) * e.half)
 	if count > 1:
+		var through := _through_flags(ends)
 		for i in count:
 			var j := (i + 1) % count
 			var e_i: Dictionary = ends[i]
@@ -103,10 +104,26 @@ static func _solve_node(project: ProjectData, node: PlanNode, corners: Dictionar
 			var limit := MITER_LIMIT * 2.0 * maxf(e_i.half, e_j.half)
 			if node.pos.distance_to(hit) > limit:
 				continue
-			lefts[i] = hit
-			rights[j] = hit
+			if not through[i]:
+				lefts[i] = hit
+			if not through[j]:
+				rights[j] = hit
 	for i in count:
 		corners["%s:%s" % [ends[i].wall.id, node.id]] = [lefts[i], rights[i]]
+
+
+## An end is "through" when another end at the node points the opposite way: that
+## wall runs straight past the junction and must keep square ends, so branches
+## stop on its face instead of slanting it.
+static func _through_flags(ends: Array) -> Array[bool]:
+	var flags: Array[bool] = []
+	for e in ends:
+		var is_through := false
+		for other in ends:
+			if e.dir.dot(other.dir) < -1.0 + _PARALLEL_EPSILON:
+				is_through = true
+		flags.append(is_through)
+	return flags
 
 
 ## Perpendicular rotated towards increasing angle (counter-clockwise in x/z maths).

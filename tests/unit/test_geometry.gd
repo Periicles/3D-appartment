@@ -77,7 +77,18 @@ func test_partition_stops_on_face_of_through_wall() -> void:
 	var partition: PackedVector2Array = footprints["p"]
 	assert_true(_has_point(partition, Vector2(1.96, 0.1)), "partition: %s" % [partition])
 	assert_true(_has_point(partition, Vector2(2.04, 0.1)), "partition: %s" % [partition])
-	assert_true(_has_point(footprints["w1"], Vector2(2, -0.1)), "through wall stays straight: %s" % [footprints["w1"]])
+	for id in ["w1", "w2"]:
+		for corner in [Vector2(2, -0.1), Vector2(2, 0.1)]:
+			assert_true(_has_point(footprints[id], corner), "%s stays square at m: %s" % [id, footprints[id]])
+
+
+func test_cross_junction_keeps_all_walls_square() -> void:
+	var project := _project(
+		[["c", 2, 2], ["w", 0, 2], ["e", 4, 2], ["n", 2, 0], ["s", 2, 4]],
+		[["w1", "c", "w", 0.2], ["w2", "c", "e", 0.2], ["w3", "c", "n", 0.2], ["w4", "c", "s", 0.2]])
+	var footprints := Geometry.wall_footprints(project)
+	for id in ["w1", "w2", "w3", "w4"]:
+		assert_almost_eq(Geometry.polygon_area(footprints[id]), 0.4, EPS, "%s: %s" % [id, footprints[id]])
 
 
 func test_wall_with_missing_node_has_no_footprint() -> void:
