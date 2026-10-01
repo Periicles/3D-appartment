@@ -1,5 +1,6 @@
 extends Node3D
-## Application root: lighting, camera and the 3D view of the open project.
+## Application root: lighting, camera, the 3D view of the open project, the
+## furniture tool and the side panels.
 
 const DEFAULT_PROJECT := "res://data/log16.json"
 const SUN_ROTATION_DEG := Vector3(-50, -40, 0)
@@ -11,6 +12,8 @@ const AMBIENT_ENERGY := 0.35
 
 var _view: WorldView
 var _camera: OrbitCamera
+var _furniture: FurnitureView
+var _tool: FurnitureTool
 
 
 func _ready() -> void:
@@ -19,10 +22,21 @@ func _ready() -> void:
 	_view = WorldView.new()
 	_view.name = "World"
 	add_child(_view)
+	_furniture = FurnitureView.new()
+	_furniture.name = "Furniture"
+	add_child(_furniture)
 	_camera = OrbitCamera.new()
 	_camera.name = "Camera"
 	add_child(_camera)
 	_camera.heading_changed.connect(_view.update_cutaway)
+	# Added after the camera: Godot delivers unhandled input to later siblings
+	# first, so the tool can claim clicks and Shift + wheel before the camera.
+	_tool = FurnitureTool.new()
+	_tool.name = "FurnitureTool"
+	add_child(_tool)
+	_furniture.bind_store(ProjectStore)
+	_tool.setup(ProjectStore, _furniture, _camera)
+	add_child(_ui())
 	ProjectStore.project_loaded.connect(_on_project_loaded)
 	var errors := ProjectStore.load_from_file(DEFAULT_PROJECT)
 	if not errors.is_empty():
@@ -37,6 +51,27 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _on_project_loaded() -> void:
 	_view.show_project(ProjectStore.project)
 	_camera.frame_project(ProjectStore.project)
+
+
+func _ui() -> CanvasLayer:
+	var layer := CanvasLayer.new()
+	layer.name = "UI"
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
+	var catalog := CatalogPanel.new()
+	catalog.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	catalog.populate(FurnitureCatalog.load_presets())
+	catalog.preset_chosen.connect(_tool.begin_placement)
+	root.add_child(catalog)
+	var properties := PropertiesPanel.new()
+	properties.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	properties.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	properties.bind_store(ProjectStore)
+	_tool.selection_changed.connect(properties.show_item)
+	root.add_child(properties)
+	return layer
 
 
 func _environment() -> WorldEnvironment:
