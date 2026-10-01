@@ -12,6 +12,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	get_tree().root.content_scale_factor = 1.0
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
 
 
@@ -95,16 +96,16 @@ func test_help_opens_with_f1_question_mark_and_button() -> void:
 	assert_true(help.visible)
 
 
-func _layer_scale(main: Node3D) -> float:
-	return (main.get_node("UI") as CanvasLayer).scale.x
+## The interface is scaled through the window's content scale, which keeps fonts sharp.
+func _layer_scale(_main: Node3D) -> float:
+	return get_tree().root.content_scale_factor
 
 
 func test_interface_covers_the_window_at_any_scale() -> void:
 	var main := await _main()
 	var root := main.get_node("UI/Root") as Control
 	_press(main, KEY_EQUAL, true)
-	assert_almost_eq(root.size * _layer_scale(main), main.get_viewport().get_visible_rect().size,
-		Vector2(EPS, EPS) * 10)
+	assert_almost_eq(root.size, main.get_viewport().get_visible_rect().size, Vector2(EPS, EPS) * 10)
 
 
 func test_command_plus_minus_zero_scale_the_interface_and_remember_it() -> void:
@@ -119,7 +120,6 @@ func test_command_plus_minus_zero_scale_the_interface_and_remember_it() -> void:
 	_press(main, KEY_0, true)
 	assert_almost_eq(_layer_scale(main), base, EPS)
 	assert_almost_eq(UiSettings.load_from(SETTINGS_PATH).zoom, 1.0, EPS)
-	assert_eq(get_tree().root.content_scale_factor, 1.0, "the 3D view is never rescaled")
 
 
 func test_saved_zoom_is_applied_at_start() -> void:

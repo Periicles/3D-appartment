@@ -9,6 +9,9 @@ const SUN_ENERGY := 1.6
 const SKY_TOP := Color("#c9dcef")
 const SKY_HORIZON := Color("#f6e7da")
 const AMBIENT_ENERGY := 0.35
+const GLOW_INTENSITY := 0.1
+const SHADOW_BLUR := 0.6
+const SHADOW_MAX_DISTANCE := 40.0
 const HELP_BUTTON_MARGIN := 12.0
 const HELP_BUTTON_SIZE := 36.0
 
@@ -20,7 +23,6 @@ var _camera: OrbitCamera
 var _furniture: FurnitureView
 var _tool: FurnitureTool
 var _settings: UiSettings
-var _ui_layer: CanvasLayer
 var _ui_root: Control
 var _catalog_side: CollapsibleSide
 var _inspector_side: CollapsibleSide
@@ -92,12 +94,12 @@ func ui_scale() -> float:
 	return _settings.ui_scale(DisplayServer.screen_get_scale())
 
 
-## Scales only the interface layer (the 3D view keeps full resolution) and sizes
-## its root so that, once scaled, it covers the window exactly.
+## Scales the 2D interface through the window's content scale, so Godot lays it
+## out at the scaled size and rasterises fonts at full resolution (sharp text).
+## The 3D view is rendered at the window's native resolution either way.
 func _apply_ui_scale() -> void:
-	var scale := ui_scale()
-	_ui_layer.scale = Vector2(scale, scale)
-	_ui_root.size = get_viewport().get_visible_rect().size / scale
+	get_window().content_scale_factor = ui_scale()
+	_ui_root.size = get_viewport().get_visible_rect().size
 
 
 func _on_project_loaded() -> void:
@@ -106,12 +108,12 @@ func _on_project_loaded() -> void:
 
 
 func _ui() -> CanvasLayer:
-	_ui_layer = CanvasLayer.new()
-	_ui_layer.name = "UI"
+	var layer := CanvasLayer.new()
+	layer.name = "UI"
 	_ui_root = Control.new()
 	_ui_root.name = "Root"
 	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ui_layer.add_child(_ui_root)
+	layer.add_child(_ui_root)
 	var catalog := CatalogPanel.new()
 	catalog.populate(FurnitureCatalog.load_presets())
 	catalog.preset_chosen.connect(_tool.begin_placement)
@@ -130,7 +132,7 @@ func _ui() -> CanvasLayer:
 	_help = ShortcutsOverlay.new()
 	_help.build()
 	_ui_root.add_child(_help)
-	return _ui_layer
+	return layer
 
 
 func _help_button() -> Button:
@@ -167,7 +169,7 @@ func _environment() -> WorldEnvironment:
 	env.ssao_enabled = true
 	env.ssao_intensity = 2.5
 	env.glow_enabled = true
-	env.glow_intensity = 0.3
+	env.glow_intensity = GLOW_INTENSITY
 	var world_env := WorldEnvironment.new()
 	world_env.name = "Environment"
 	world_env.environment = env
@@ -181,5 +183,7 @@ func _sun() -> DirectionalLight3D:
 	sun.light_color = SUN_COLOR
 	sun.light_energy = SUN_ENERGY
 	sun.shadow_enabled = true
-	sun.shadow_blur = 2.0
+	sun.shadow_blur = SHADOW_BLUR
+	# The flat fits in ~15 m: keep the shadow map on it for crisp edges.
+	sun.directional_shadow_max_distance = SHADOW_MAX_DISTANCE
 	return sun
