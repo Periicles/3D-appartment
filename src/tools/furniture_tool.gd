@@ -97,14 +97,17 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				_on_left_press(event)
 			elif _dragging:
 				_finish_drag()
-		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
+		# macOS turns Shift + wheel into a horizontal wheel, so accept both axes.
+		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT:
 			if event.pressed and event.shift_pressed and selected_id() != "" and not _dragging:
-				var step := FINE_ROTATE_STEP_DEG if event.button_index == MOUSE_BUTTON_WHEEL_UP else -FINE_ROTATE_STEP_DEG
-				_rotate_selected(step)
+				var positive: bool = event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]
+				_rotate_selected(FINE_ROTATE_STEP_DEG if positive else -FINE_ROTATE_STEP_DEG)
 				get_viewport().set_input_as_handled()
 
 
 func _on_left_press(event: InputEventMouseButton) -> void:
+	# Lets a focused panel field commit while it still shows the previous item.
+	get_viewport().gui_release_focus()
 	if _placing != null:
 		_place_ghost()
 		get_viewport().set_input_as_handled()
@@ -139,6 +142,8 @@ func _finish_drag() -> void:
 func _on_key(event: InputEventKey) -> void:
 	var command := event.is_command_or_control_pressed()
 	if command and event.keycode == KEY_Z:
+		if _dragging:
+			return  # The release would overwrite whatever the undo reverted.
 		if event.shift_pressed:
 			store.redo()
 		else:

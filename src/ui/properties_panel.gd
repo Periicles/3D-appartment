@@ -8,7 +8,7 @@ const CM_PER_M := 100.0
 const MIN_SIZE_CM := 1.0
 const MAX_SIZE_CM := 1000.0
 const POSITION_LIMIT_M := 100.0
-const HINT := "R : pivoter · Maj + molette : ±15°\nSuppr : supprimer · Ctrl/Cmd + D : dupliquer\nCtrl/Cmd + Z : annuler"
+const HINT := "R : pivoter · Maj + molette (souris) : ±15°\nSuppr : supprimer · Ctrl/Cmd + D : dupliquer\nCtrl/Cmd + Z : annuler"
 
 var store: Node
 var _item_id := ""
@@ -52,10 +52,11 @@ func _init() -> void:
 	hint.text = HINT
 	hint.add_theme_font_size_override("font_size", 11)
 	form.add_child(hint)
-	for spin in [_width, _depth, _height]:
-		spin.value_changed.connect(func(_v: float) -> void: _commit_size())
-	_x.value_changed.connect(func(_v: float) -> void: _commit({"pos": Vector2(_x.value, _z.value)}))
-	_z.value_changed.connect(func(_v: float) -> void: _commit({"pos": Vector2(_x.value, _z.value)}))
+	_width.value_changed.connect(func(_v: float) -> void: _commit_size(Vector3.AXIS_X, _width))
+	_height.value_changed.connect(func(_v: float) -> void: _commit_size(Vector3.AXIS_Y, _height))
+	_depth.value_changed.connect(func(_v: float) -> void: _commit_size(Vector3.AXIS_Z, _depth))
+	_x.value_changed.connect(func(_v: float) -> void: _commit_pos(Vector2.AXIS_X, _x))
+	_z.value_changed.connect(func(_v: float) -> void: _commit_pos(Vector2.AXIS_Y, _z))
 	_rotation.value_changed.connect(func(v: float) -> void: _commit({"rotation_deg": fposmod(v, 360.0)}))
 	visible = false
 
@@ -98,8 +99,23 @@ func _commit_name() -> void:
 		_commit({"name": _name.text.strip_edges()})
 
 
-func _commit_size() -> void:
-	_commit({"size": Vector3(_width.value, _height.value, _depth.value) / CM_PER_M})
+## Changes one component of the stored size; the others keep their exact value
+## instead of the SpinBox-rounded one.
+func _commit_size(axis: Vector3.Axis, spin: SpinBox) -> void:
+	if _filling or _item_id == "":
+		return
+	var size: Vector3 = store.get_furniture(_item_id).size
+	size[axis] = spin.value / CM_PER_M
+	_commit({"size": size})
+
+
+## Same as _commit_size() for the floor position.
+func _commit_pos(axis: Vector2.Axis, spin: SpinBox) -> void:
+	if _filling or _item_id == "":
+		return
+	var pos: Vector2 = store.get_furniture(_item_id).pos
+	pos[axis] = spin.value
+	_commit({"pos": pos})
 
 
 ## Sends the change unless the panel is being filled or nothing would change.

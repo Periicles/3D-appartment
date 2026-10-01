@@ -82,7 +82,7 @@ func update_furniture(id: String, changes: Dictionary) -> bool:
 	if not _is_valid(preview):
 		return false
 	_history.create_action("Modifier %s" % item.name)
-	_history.add_do_method(_apply.bind(id, changes))
+	_history.add_do_method(_apply.bind(id, changes.duplicate()))
 	_history.add_undo_method(_apply.bind(id, previous))
 	_history.commit_action()
 	return true
@@ -109,8 +109,7 @@ func duplicate_furniture(id: String) -> String:
 	var clone := item.copy()
 	clone.id = next_furniture_id()
 	clone.pos += DUPLICATE_OFFSET
-	add_furniture(clone)
-	return clone.id
+	return clone.id if add_furniture(clone) else ""
 
 
 func undo() -> bool:

@@ -58,9 +58,12 @@ func _key(keycode: Key, command := false, shift := false) -> void:
 	_tool._unhandled_input(event)
 
 
-func _wheel(up: bool, shift: bool) -> void:
+func _wheel(up: bool, shift: bool, horizontal := false) -> void:
 	var event := InputEventMouseButton.new()
-	event.button_index = MOUSE_BUTTON_WHEEL_UP if up else MOUSE_BUTTON_WHEEL_DOWN
+	if horizontal:
+		event.button_index = MOUSE_BUTTON_WHEEL_LEFT if up else MOUSE_BUTTON_WHEEL_RIGHT
+	else:
+		event.button_index = MOUSE_BUTTON_WHEEL_UP if up else MOUSE_BUTTON_WHEEL_DOWN
 	event.pressed = true
 	event.shift_pressed = shift
 	_tool._unhandled_input(event)
@@ -174,6 +177,23 @@ func test_shift_wheel_rotates_in_fine_steps() -> void:
 	assert_almost_eq(_store.get_furniture(id).rotation_deg, 345.0, EPS)
 
 
+func test_shift_horizontal_wheel_rotates_in_fine_steps() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	_tool._select(id)
+	_wheel(true, true, true)
+	assert_almost_eq(_store.get_furniture(id).rotation_deg, 15.0, EPS, "wheel left is +15")
+	_wheel(false, true, true)
+	_wheel(false, true, true)
+	assert_almost_eq(_store.get_furniture(id).rotation_deg, 345.0, EPS, "wheel right is -15")
+
+
+func test_plain_horizontal_wheel_is_left_to_the_camera() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	_tool._select(id)
+	_wheel(true, false, true)
+	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
+
+
 func test_plain_wheel_is_left_to_the_camera() -> void:
 	var id := _add_sofa(Vector2(2, 2), 0.0)
 	_tool._select(id)
@@ -259,8 +279,32 @@ func test_rotating_during_a_drag_is_ignored() -> void:
 	_move(Vector2(2.5, 2.3), false, true)
 	_key(KEY_R)
 	_wheel(true, true)
+	_wheel(true, true, true)
 	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
 	_click(Vector2(2.5, 2.3), false)
 	_store.undo()
 	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2, 2), Vector2(EPS, EPS))
 	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
+
+
+func test_undo_redo_during_a_drag_are_ignored() -> void:
+	var id := _add_sofa(Vector2(2, 2))
+	_store.update_furniture(id, {"name": "Renamed"})
+	_click(Vector2(2, 2))
+	_move(Vector2(2.5, 2.3), false, true)
+	_key(KEY_Z, true)
+	assert_eq(_store.get_furniture(id).name, "Renamed", "nothing undone while dragging")
+	_key(KEY_Z, true, true)
+	_click(Vector2(2.5, 2.3), false)
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2.5, 2.3), Vector2(EPS, EPS))
+	_store.undo()
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2, 2), Vector2(EPS, EPS), "release is one update step")
+	assert_eq(_store.get_furniture(id).name, "Renamed")
+
+
+func test_scene_click_releases_gui_focus() -> void:
+	var field: LineEdit = add_child_autofree(LineEdit.new())
+	field.grab_focus()
+	assert_not_null(get_viewport().gui_get_focus_owner(), "precondition: the field has focus")
+	_click(Vector2(1, 1))
+	assert_null(get_viewport().gui_get_focus_owner())

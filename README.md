@@ -33,7 +33,7 @@ Au lancement, l'application ouvre le plan du log 16 (`data/log16.json`).
 |---|---|
 | Ajouter un meuble | Clic sur un modèle du catalogue (à gauche), puis clic dans la pièce |
 | Pivoter l'aperçu ou le meuble sélectionné | R (quart de tour) |
-| Pivoter finement le meuble sélectionné | Maj + molette (±15°) |
+| Pivoter finement le meuble sélectionné | Maj + molette de la souris (±15°) |
 | Placement libre, sans grille | Alt pendant le déplacement |
 | Sélectionner | Clic sur le meuble |
 | Déplacer | Clic sur le meuble + glisser |
@@ -42,7 +42,7 @@ Au lancement, l'application ouvre le plan du log 16 (`data/log16.json`).
 | Annuler / rétablir | Ctrl/Cmd + Z / Ctrl/Cmd + Maj + Z |
 | Abandonner l'ajout ou désélectionner | Échap |
 
-Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Le panneau de droite modifie le nom, les dimensions, la couleur, la position et la rotation du meuble sélectionné.
+Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Au pavé tactile, pivotez avec R ou le champ Rotation. Le panneau de droite modifie le nom, les dimensions, la couleur, la position et la rotation du meuble sélectionné.
 
 Les meubles ne sont pas encore enregistrés : la sauvegarde arrive avec le jalon M3.
 

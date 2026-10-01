@@ -110,3 +110,13 @@ func test_loading_a_project_clears_history() -> void:
 func test_undo_with_empty_history_is_harmless() -> void:
 	assert_false(_store.undo())
 	assert_false(_store.redo())
+
+
+func test_update_binds_a_copy_of_the_changes() -> void:
+	_store.add_furniture(_sofa())
+	var changes := {"pos": Vector2(3, 1)}
+	_store.update_furniture("f1", changes)
+	changes["pos"] = Vector2(9, 9)
+	_store.undo()
+	_store.redo()
+	assert_eq(_store.get_furniture("f1").pos, Vector2(3, 1))
