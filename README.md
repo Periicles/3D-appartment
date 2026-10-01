@@ -12,6 +12,18 @@ Outil desktop d'aménagement intérieur en 2D et 3D, construit avec Godot 4 (GDS
 godot --editor project.godot
 ```
 
+## Utilisation
+
+Au lancement, l'application ouvre le plan du log 16 (`data/log16.json`).
+
+| Action | Contrôle |
+|---|---|
+| Tourner autour | Clic droit + glisser |
+| Se déplacer | Clic molette + glisser |
+| Zoomer | Molette |
+| Centrer sur une pièce | Double-clic sur son sol |
+| Masquage des murs (auto / complets / tous abaissés) | H |
+
 ## Tests
 
 Les tests utilisent [GUT](https://github.com/bitwes/Gut), embarqué dans `addons/gut/`.
