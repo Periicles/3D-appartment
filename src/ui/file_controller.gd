@@ -145,7 +145,9 @@ func save_as() -> void:
 
 
 func request_quit() -> void:
-	_confirm_discard(quit_action)
+	_confirm_discard(func() -> void:
+		autosave.clear()
+		quit_action.call())
 
 
 func title_text() -> String:
@@ -175,7 +177,7 @@ func answer_confirmation(choice: StringName) -> void:
 		&"save":
 			_save_then(then)
 		&"discard":
-			autosave.clear()
+			# The copy stays until a replacement succeeds: opening can still fail.
 			then.call()
 
 

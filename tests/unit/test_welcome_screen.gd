@@ -111,3 +111,28 @@ func test_home_folder_is_shortened() -> void:
 	var home := OS.get_environment("HOME")
 	assert_eq(WelcomeScreen._short_folder(home + "/Documents/a.json"), "~/Documents")
 	assert_eq(WelcomeScreen._short_folder("/tmp/a.json"), "/tmp")
+
+
+func _choice_buttons() -> Array[Button]:
+	var buttons: Array[Button] = []
+	for node_name in ["NewEmpty", "NewFromTemplate", "OpenFile"]:
+		buttons.append(_welcome.find_child(node_name, true, false) as Button)
+	return buttons
+
+
+func test_choices_wait_for_the_restore_decision() -> void:
+	_welcome.present(_recents(), "appart.json", true)
+	for button in _choice_buttons():
+		assert_true(button.disabled, button.name)
+	assert_true((_rows()[0].get_node("Open") as Button).disabled)
+	assert_false((_rows()[0].get_node("Forget") as Button).disabled)
+	assert_not_null(_welcome.find_child("RestoreHint", true, false))
+
+
+func test_choices_are_enabled_without_a_restore_card() -> void:
+	_welcome.present(_recents(), "", true)
+	for button in _choice_buttons():
+		assert_false(button.disabled, button.name)
+	assert_false((_rows()[0].get_node("Open") as Button).disabled)
+	assert_true((_rows()[1].get_node("Open") as Button).disabled, "a missing file stays disabled")
+	assert_null(_welcome.find_child("RestoreHint", true, false))

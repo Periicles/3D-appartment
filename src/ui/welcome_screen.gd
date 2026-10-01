@@ -18,6 +18,7 @@ const ROW_HEIGHT := 58.0
 const MAX_LIST_HEIGHT := 400.0
 const MISSING_COLOR := Color(1, 1, 1, 0.4)
 const RESTORE_BORDER := 2
+const RESTORE_HINT := "Choisissez d'abord : restaurer ou ignorer."
 
 ## False while no project is open yet (first launch): the page cannot be dismissed.
 var can_close := true
@@ -61,11 +62,16 @@ func present(recents: Array[Dictionary], restore_name: String, closable: bool) -
 	layout.add_child(title)
 	if restore_name != "":
 		layout.add_child(_restore_card(restore_name))
+		var hint := Label.new()
+		hint.name = "RestoreHint"
+		hint.text = RESTORE_HINT
+		layout.add_child(hint)
+	var must_decide := restore_name != ""
 	var actions := HBoxContainer.new()
 	layout.add_child(actions)
-	_button(actions, "NewEmpty", "Nouveau projet vide", new_empty_chosen.emit)
-	_button(actions, "NewFromTemplate", "Nouveau depuis le log 16", new_from_template_chosen.emit)
-	_button(actions, "OpenFile", "Ouvrir un fichier…", open_file_chosen.emit)
+	_button(actions, "NewEmpty", "Nouveau projet vide", new_empty_chosen.emit).disabled = must_decide
+	_button(actions, "NewFromTemplate", "Nouveau depuis le log 16", new_from_template_chosen.emit).disabled = must_decide
+	_button(actions, "OpenFile", "Ouvrir un fichier…", open_file_chosen.emit).disabled = must_decide
 	var heading := Label.new()
 	heading.text = "Projets récents"
 	heading.add_theme_color_override("font_color", Palette.SELECTION)
@@ -83,7 +89,7 @@ func present(recents: Array[Dictionary], restore_name: String, closable: bool) -
 		empty.text = "Aucun projet récent."
 		list.add_child(empty)
 	for entry in recents:
-		list.add_child(_recent_row(entry))
+		list.add_child(_recent_row(entry, must_decide))
 	visible = true
 
 
@@ -117,7 +123,7 @@ func _restore_card(file_name: String) -> PanelContainer:
 	return card
 
 
-func _recent_row(entry: Dictionary) -> HBoxContainer:
+func _recent_row(entry: Dictionary, must_decide: bool) -> HBoxContainer:
 	var path: String = entry.path
 	var exists := FileAccess.file_exists(path)
 	var row := HBoxContainer.new()
@@ -127,7 +133,7 @@ func _recent_row(entry: Dictionary) -> HBoxContainer:
 	open.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	open.text = "%s\n%s · %s" % [path.get_file(), _short_folder(path),
 		_date(entry.opened_at) if exists else "introuvable"]
-	open.disabled = not exists
+	open.disabled = not exists or must_decide
 	if not exists:
 		open.add_theme_color_override("font_disabled_color", MISSING_COLOR)
 	open.pressed.connect(recent_chosen.emit.bind(path))

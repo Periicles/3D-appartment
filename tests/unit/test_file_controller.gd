@@ -239,6 +239,29 @@ func test_discard_drops_changes_and_the_autosave() -> void:
 	assert_false(_autosave.has_pending())
 
 
+func test_discard_keeps_the_copy_when_the_open_picker_is_cancelled() -> void:
+	_start_with_template()
+	_dirty_edit()
+	_autosave.flush()
+	_files.open()
+	_files.answer_confirmation(&"discard")  # _picked is "": the user cancels the picker
+	assert_true(_autosave.has_pending())
+	assert_true(_store.is_dirty())
+
+
+func test_discard_keeps_the_copy_when_the_opened_file_is_broken() -> void:
+	_start_with_template()
+	_dirty_edit()
+	_autosave.flush()
+	var file := FileAccess.open(PROJECT_B, FileAccess.WRITE)
+	file.store_string("{pas du json")
+	file.close()
+	_picked = PROJECT_B
+	_files.open()
+	_files.answer_confirmation(&"discard")
+	assert_true(_autosave.has_pending())
+
+
 func test_save_then_continue() -> void:
 	_start_with_template()
 	_dirty_edit()
@@ -266,8 +289,10 @@ func test_quit_asks_when_dirty_and_quits_directly_otherwise() -> void:
 	_files.request_quit()
 	assert_eq(_quit_count, 1)
 	assert_true(_files.is_confirming())
+	_autosave.flush()
 	_files.answer_confirmation(&"discard")
 	assert_eq(_quit_count, 2)
+	assert_false(_autosave.has_pending(), "quitting drops the copy")
 
 
 func test_title_shows_file_name_and_unsaved_marker() -> void:
