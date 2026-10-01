@@ -158,3 +158,16 @@ func test_editing_height_and_depth_keep_the_other_components() -> void:
 	assert_eq(size.x, OFF_STEP_SIZE.x)
 	assert_almost_eq(size.y, 0.9, EPS)
 	assert_almost_eq(size.z, 0.8, EPS)
+
+
+func test_properties_hint_comes_from_the_shortcut_list() -> void:
+	var panel := _properties()
+	var texts := panel.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	assert_has(texts, Shortcuts.furniture_hint())
+
+
+func test_properties_form_scrolls_when_the_window_is_short() -> void:
+	var panel := _properties()
+	var scroll := panel.get_child(0) as ScrollContainer
+	assert_not_null(scroll)
+	assert_not_null(scroll.find_child("Width", true, false))

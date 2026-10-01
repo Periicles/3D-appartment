@@ -25,5 +25,6 @@ ProjectStore="*res://src/store/project_store.gd"
 
 [display]
 
-window/size/viewport_width=1600
-window/size/viewport_height=900
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/size/mode=2

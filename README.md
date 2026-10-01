@@ -46,6 +46,17 @@ Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Au pavé t
 
 Les meubles ne sont pas encore enregistrés : la sauvegarde arrive avec le jalon M3.
 
+### Interface
+
+| Action | Contrôle |
+|---|---|
+| Afficher ou masquer le catalogue | C (ou l'onglet « ▸ Catalogue » au bord gauche) |
+| Afficher ou masquer l'inspecteur | I (ou l'onglet « Inspecteur ◂ » au bord droit) |
+| Liste de tous les raccourcis | ? ou F1 (ou le bouton « ? » en bas à droite) |
+| Agrandir / réduire / taille par défaut de l'interface | Ctrl/Cmd + + / Ctrl/Cmd + − / Ctrl/Cmd + 0 |
+
+La fenêtre s'ouvre maximisée. La taille de l'interface suit le réglage d'affichage de macOS (Retina), multipliée par le zoom choisi, qui est mémorisé d'une session à l'autre dans `user://settings.cfg`.
+
 ## Tests
 
 Les tests utilisent [GUT](https://github.com/bitwes/Gut), embarqué dans `addons/gut/`.

@@ -8,7 +8,6 @@ const CM_PER_M := 100.0
 const MIN_SIZE_CM := 1.0
 const MAX_SIZE_CM := 1000.0
 const POSITION_LIMIT_M := 100.0
-const HINT := "R : pivoter · Maj + molette (souris) : ±15°\nSuppr : supprimer · Ctrl/Cmd + D : dupliquer\nCtrl/Cmd + Z : annuler"
 
 var store: Node
 var _item_id := ""
@@ -26,8 +25,12 @@ var _rotation: SpinBox
 func _init() -> void:
 	name = "Properties"
 	custom_minimum_size.x = PANEL_WIDTH
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
 	var form := VBoxContainer.new()
-	add_child(form)
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(form)
 	var title := Label.new()
 	title.text = "Propriétés"
 	form.add_child(title)
@@ -49,7 +52,8 @@ func _init() -> void:
 	_z = _spin(form, "Z", "Position Z (m)", -POSITION_LIMIT_M, POSITION_LIMIT_M, 0.01)
 	_rotation = _spin(form, "Rotation", "Rotation (°)", 0.0, 360.0, 1.0)
 	var hint := Label.new()
-	hint.text = HINT
+	hint.text = Shortcuts.furniture_hint()
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 11)
 	form.add_child(hint)
 	_width.value_changed.connect(func(_v: float) -> void: _commit_size(Vector3.AXIS_X, _width))
