@@ -15,3 +15,16 @@ var color: Color
 var pos: Vector2
 ## Rotation around the vertical axis, in degrees.
 var rotation_deg: float
+
+
+func copy() -> FurnitureItem:
+	var other := FurnitureItem.new()
+	other.id = id
+	other.preset = preset
+	other.glb = glb
+	other.name = name
+	other.size = size
+	other.color = color
+	other.pos = pos
+	other.rotation_deg = rotation_deg
+	return other

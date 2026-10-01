@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FurniturePreset" format=3]
+
+[ext_resource type="Script" path="res://src/model/furniture_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "nightstand"
+name = "Table de chevet"
+category = "Chambre"
+size = Vector3(0.45, 0.5, 0.4)
+color = Color(0.6275, 0.4863, 0.3608, 1)

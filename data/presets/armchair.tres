@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FurniturePreset" format=3]
+
+[ext_resource type="Script" path="res://src/model/furniture_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "armchair"
+name = "Fauteuil"
+category = "Salon"
+size = Vector3(0.8, 0.85, 0.8)
+color = Color(0.7255, 0.5608, 0.4549, 1)

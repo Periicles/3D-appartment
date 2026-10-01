@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FurniturePreset" format=3]
+
+[ext_resource type="Script" path="res://src/model/furniture_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "garden_set"
+name = "Salon de jardin"
+category = "Extérieur"
+size = Vector3(1.6, 0.75, 1.6)
+color = Color(0.498, 0.6039, 0.4784, 1)
