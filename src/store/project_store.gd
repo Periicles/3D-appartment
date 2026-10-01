@@ -1,10 +1,25 @@
 extends Node
 ## Autoload holding the open project. Views never edit the data directly:
-## they call the store and react to its signals.
+## they call the store and react to its signals. Every edit goes through
+## Godot's UndoRedo so it can be undone.
 
 signal project_loaded
+signal furniture_added(id: String)
+signal furniture_changed(id: String)
+signal furniture_removed(id: String)
+
+## Fields of a FurnitureItem that update_furniture accepts.
+const EDITABLE_FIELDS: PackedStringArray = ["name", "size", "color", "pos", "rotation_deg"]
+## Offset of a duplicate from its original, so both stay visible.
+const DUPLICATE_OFFSET := Vector2(0.3, 0.3)
 
 var project: ProjectData = ProjectData.new()
+var _history := UndoRedo.new()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_history.free()
 
 
 ## Replaces the open project. On failure the current project is kept and the
@@ -16,5 +31,122 @@ func load_from_file(path: String) -> PackedStringArray:
 	if not result.is_ok():
 		return result.errors
 	project = result.project
+	_history.clear_history()
 	project_loaded.emit()
 	return PackedStringArray()
+
+
+func get_furniture(id: String) -> FurnitureItem:
+	for item in project.furniture:
+		if item.id == id:
+			return item
+	return null
+
+
+## "f" followed by one more than the highest numbered "f<n>" id in use.
+func next_furniture_id() -> String:
+	var highest := 0
+	for item in project.furniture:
+		var suffix := item.id.substr(1)
+		if item.id.begins_with("f") and suffix.is_valid_int():
+			highest = maxi(highest, suffix.to_int())
+	return "f%d" % (highest + 1)
+
+
+## Adds a copy of `item`. Returns false (and changes nothing) if the item is
+## invalid or its id is already used.
+func add_furniture(item: FurnitureItem) -> bool:
+	if get_furniture(item.id) != null or not _is_valid(item):
+		return false
+	var stored := item.copy()
+	_history.create_action("Ajouter %s" % stored.name)
+	_history.add_do_method(_insert.bind(stored, project.furniture.size()))
+	_history.add_undo_method(_delete.bind(stored.id))
+	_history.commit_action()
+	return true
+
+
+## Applies `changes` (keys from EDITABLE_FIELDS) to the item. Returns false
+## (and changes nothing) for an unknown id, unknown field or invalid result.
+func update_furniture(id: String, changes: Dictionary) -> bool:
+	var item := get_furniture(id)
+	if item == null or changes.is_empty():
+		return false
+	var previous := {}
+	var preview := item.copy()
+	for key in changes:
+		if not key in EDITABLE_FIELDS:
+			return false
+		previous[key] = item.get(key)
+		preview.set(key, changes[key])
+	if not _is_valid(preview):
+		return false
+	_history.create_action("Modifier %s" % item.name)
+	_history.add_do_method(_apply.bind(id, changes))
+	_history.add_undo_method(_apply.bind(id, previous))
+	_history.commit_action()
+	return true
+
+
+func remove_furniture(id: String) -> bool:
+	var item := get_furniture(id)
+	if item == null:
+		return false
+	var index := project.furniture.find(item)
+	_history.create_action("Supprimer %s" % item.name)
+	_history.add_do_method(_delete.bind(id))
+	_history.add_undo_method(_insert.bind(item.copy(), index))
+	_history.commit_action()
+	return true
+
+
+## Adds a copy of the item, offset by DUPLICATE_OFFSET. Returns the new id, or
+## "" for an unknown id.
+func duplicate_furniture(id: String) -> String:
+	var item := get_furniture(id)
+	if item == null:
+		return ""
+	var clone := item.copy()
+	clone.id = next_furniture_id()
+	clone.pos += DUPLICATE_OFFSET
+	add_furniture(clone)
+	return clone.id
+
+
+func undo() -> bool:
+	return _history.undo()
+
+
+func redo() -> bool:
+	return _history.redo()
+
+
+func can_undo() -> bool:
+	return _history.has_undo()
+
+
+func can_redo() -> bool:
+	return _history.has_redo()
+
+
+func _insert(item: FurnitureItem, index: int) -> void:
+	project.furniture.insert(mini(index, project.furniture.size()), item.copy())
+	furniture_added.emit(item.id)
+
+
+func _delete(id: String) -> void:
+	project.furniture.erase(get_furniture(id))
+	furniture_removed.emit(id)
+
+
+func _apply(id: String, values: Dictionary) -> void:
+	var item := get_furniture(id)
+	for key in values:
+		item.set(key, values[key])
+	furniture_changed.emit(id)
+
+
+func _is_valid(item: FurnitureItem) -> bool:
+	var probe := ProjectData.new()
+	probe.furniture.append(item)
+	return ProjectValidator.validate(probe).is_empty()
