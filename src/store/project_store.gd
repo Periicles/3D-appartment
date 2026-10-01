@@ -75,7 +75,7 @@ func save_to_file(path: String) -> PackedStringArray:
 	var invalid := ProjectValidator.validate(project)
 	if not invalid.is_empty():
 		return invalid
-	var error := _write_atomically(path, ProjectSerializer.to_json(project))
+	var error := AtomicFile.write(path, ProjectSerializer.to_json(project))
 	if error != OK:
 		return PackedStringArray(["écriture impossible : %s (%s)" % [path, error_string(error)]])
 	current_path = path
@@ -191,23 +191,6 @@ func _replace(new_project_data: ProjectData, path: String, dirty := false) -> vo
 func _on_version_changed() -> void:
 	edited.emit()
 	dirty_changed.emit(is_dirty())
-
-
-static func _write_atomically(path: String, text: String) -> Error:
-	var temporary := path + ".tmp"
-	var file := FileAccess.open(temporary, FileAccess.WRITE)
-	if file == null:
-		return FileAccess.get_open_error()
-	file.store_string(text)
-	var write_error := file.get_error()
-	file.close()
-	if write_error != OK:
-		DirAccess.remove_absolute(temporary)
-		return write_error
-	var error := DirAccess.rename_absolute(temporary, path)
-	if error != OK:
-		DirAccess.remove_absolute(temporary)
-	return error
 
 
 func _insert(item: FurnitureItem, index: int) -> void:

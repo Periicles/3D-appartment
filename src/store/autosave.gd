@@ -4,6 +4,8 @@ extends Node
 ## last edit, so a crash or a forced quit never loses it. The copy is removed
 ## as soon as the project is saved or replaced.
 
+signal write_failed(error: Error)
+
 const PROJECT_PATH := "user://autosave.json"
 const META_PATH := "user://autosave.cfg"
 const DELAY_SECONDS := 2.0
@@ -20,7 +22,7 @@ func _init() -> void:
 	name = "Autosave"
 	_timer = Timer.new()
 	_timer.one_shot = true
-	_timer.timeout.connect(flush)
+	_timer.timeout.connect(_on_timeout)
 	add_child(_timer)
 
 
@@ -49,18 +51,19 @@ func is_scheduled() -> bool:
 	return not _timer.is_stopped()
 
 
-## Writes the copy now. Returns the write error, if any.
+## Writes the copy now, unless there is no unsaved work. The meta file goes
+## first so that a copy never exists without it. Returns the write error, if any.
 func flush() -> Error:
 	_timer.stop()
-	var file := FileAccess.open(project_path, FileAccess.WRITE)
-	if file == null:
-		return FileAccess.get_open_error()
-	file.store_string(ProjectSerializer.to_json(store.project))
-	file.close()
+	if not store.is_dirty():
+		return OK
 	var meta := ConfigFile.new()
 	meta.set_value(SECTION, "source_path", store.current_path)
 	meta.set_value(SECTION, "saved_at", Time.get_unix_time_from_system())
-	return meta.save(meta_path)
+	var error := meta.save(meta_path)
+	if error != OK:
+		return error
+	return AtomicFile.write(project_path, ProjectSerializer.to_json(store.project))
 
 
 ## Loads the pending copy into `target` (the store, before start()).
@@ -75,6 +78,14 @@ func clear() -> void:
 	for path in [project_path, meta_path]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func _on_timeout() -> void:
+	var error := flush()
+	if error == OK:
+		return
+	push_warning("sauvegarde automatique impossible : %s (%s)" % [project_path, error_string(error)])
+	write_failed.emit(error)
 
 
 func _on_edited() -> void:

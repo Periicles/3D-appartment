@@ -5,7 +5,7 @@ const Fixtures := preload("res://tests/fixtures/project_fixtures.gd")
 const PROJECT := "user://test_autosave.json"
 const META := "user://test_autosave.cfg"
 const SAVE_PATH := "user://test_autosave_saved.json"
-const DELAY := 0.1
+const DELAY := 0.3
 
 var _store: Node
 var _autosave: Autosave
@@ -40,7 +40,7 @@ func test_an_edit_is_written_after_the_delay() -> void:
 	_store.add_furniture(Fixtures.sofa("f1"))
 	assert_true(_autosave.is_scheduled())
 	assert_false(_autosave.has_pending(), "not before the delay")
-	await wait_seconds(DELAY + 0.15)
+	await wait_seconds(DELAY + 0.4)
 	assert_true(_autosave.has_pending())
 	var copy := ProjectSerializer.from_json(FileAccess.get_file_as_string(PROJECT))
 	assert_eq(copy.project.furniture.size(), 1)
@@ -48,11 +48,11 @@ func test_an_edit_is_written_after_the_delay() -> void:
 
 func test_further_edits_postpone_the_write() -> void:
 	_store.add_furniture(Fixtures.sofa("f1"))
-	await wait_seconds(DELAY * 0.6)
+	await wait_seconds(DELAY * 0.7)
 	_store.update_furniture("f1", {"name": "Autre"})
-	await wait_seconds(DELAY * 0.6)
+	await wait_seconds(DELAY * 0.7)
 	assert_false(_autosave.has_pending(), "timer restarted by the second edit")
-	await wait_seconds(DELAY)
+	await wait_seconds(DELAY * 0.7 + 0.3)
 	assert_true(_autosave.has_pending())
 
 
@@ -103,3 +103,17 @@ func test_starting_twice_is_harmless() -> void:
 	_autosave.start(_store)
 	_store.add_furniture(Fixtures.sofa("f1"))
 	assert_true(_autosave.is_scheduled())
+
+
+func test_flush_on_a_clean_store_writes_nothing() -> void:
+	assert_eq(_autosave.flush(), OK)
+	assert_false(_autosave.has_pending())
+	assert_false(FileAccess.file_exists(META))
+
+
+func test_timer_write_failure_is_signalled() -> void:
+	_autosave.project_path = "/no/such/dir/autosave.json"
+	watch_signals(_autosave)
+	_store.add_furniture(Fixtures.sofa("f1"))
+	_autosave._timer.timeout.emit()
+	assert_signal_emitted(_autosave, "write_failed")
