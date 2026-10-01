@@ -4,6 +4,10 @@ extends Node
 ## Godot's UndoRedo so it can be undone.
 
 signal project_loaded
+## Any change to the edit history (edit, undo, redo); the autosave listens to it.
+signal edited
+signal dirty_changed(dirty: bool)
+signal path_changed(path: String)
 signal furniture_added(id: String)
 signal furniture_changed(id: String)
 signal furniture_removed(id: String)
@@ -14,7 +18,16 @@ const EDITABLE_FIELDS: PackedStringArray = ["name", "size", "color", "pos", "rot
 const DUPLICATE_OFFSET := Vector2(0.3, 0.3)
 
 var project: ProjectData = ProjectData.new()
+## File the project was opened from or last saved to; "" for a new project.
+var current_path := ""
 var _history := UndoRedo.new()
+## History version at the last open or save; -1 when restored unsaved work.
+var _saved_version := 0
+
+
+func _init() -> void:
+	_saved_version = _history.get_version()
+	_history.version_changed.connect(_on_version_changed)
 
 
 func _notification(what: int) -> void:
@@ -22,17 +35,55 @@ func _notification(what: int) -> void:
 		_history.free()
 
 
-## Replaces the open project. On failure the current project is kept and the
-## reasons are returned.
-func load_from_file(path: String) -> PackedStringArray:
+## True when the project has changes that are not saved to a file.
+func is_dirty() -> bool:
+	return _history.get_version() != _saved_version
+
+
+## Replaces the open project with an empty one.
+func new_project() -> void:
+	_replace(ProjectData.new(), "")
+
+
+## Replaces the open project with the file's content. With `as_template`, the
+## file is only a starting point: the project stays untitled, so saving asks
+## for a new path. On failure the current project is kept and the reasons are
+## returned.
+func load_from_file(path: String, as_template: bool = false) -> PackedStringArray:
 	if not FileAccess.file_exists(path):
 		return PackedStringArray(["fichier introuvable : %s" % path])
 	var result := ProjectSerializer.from_json(FileAccess.get_file_as_string(path))
 	if not result.is_ok():
 		return result.errors
-	project = result.project
-	_history.clear_history()
-	project_loaded.emit()
+	_replace(result.project, "" if as_template else path)
+	return PackedStringArray()
+
+
+## Reopens unsaved work (the autosave) as a modified version of `original_path`.
+func restore_from_text(text: String, original_path: String) -> PackedStringArray:
+	var result := ProjectSerializer.from_json(text)
+	if not result.is_ok():
+		return result.errors
+	_replace(result.project, original_path)
+	_saved_version = -1
+	dirty_changed.emit(true)
+	return PackedStringArray()
+
+
+## Writes the project to `path` (through a temporary file, so a failed write
+## never truncates an existing project) and makes it the current file. On
+## failure nothing changes and the reasons are returned.
+func save_to_file(path: String) -> PackedStringArray:
+	var invalid := ProjectValidator.validate(project)
+	if not invalid.is_empty():
+		return invalid
+	var error := _write_atomically(path, ProjectSerializer.to_json(project))
+	if error != OK:
+		return PackedStringArray(["écriture impossible : %s (%s)" % [path, error_string(error)]])
+	current_path = path
+	_saved_version = _history.get_version()
+	path_changed.emit(path)
+	dirty_changed.emit(false)
 	return PackedStringArray()
 
 
@@ -126,6 +177,34 @@ func can_undo() -> bool:
 
 func can_redo() -> bool:
 	return _history.has_redo()
+
+
+func _replace(new_project_data: ProjectData, path: String) -> void:
+	project = new_project_data
+	current_path = path
+	_history.clear_history()
+	_saved_version = _history.get_version()
+	project_loaded.emit()
+	path_changed.emit(path)
+	dirty_changed.emit(false)
+
+
+func _on_version_changed() -> void:
+	edited.emit()
+	dirty_changed.emit(is_dirty())
+
+
+static func _write_atomically(path: String, text: String) -> Error:
+	var temporary := path + ".tmp"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_string(text)
+	file.close()
+	var error := DirAccess.rename_absolute(temporary, path)
+	if error != OK:
+		DirAccess.remove_absolute(temporary)
+	return error
 
 
 func _insert(item: FurnitureItem, index: int) -> void:
