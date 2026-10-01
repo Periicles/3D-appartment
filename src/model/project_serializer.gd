@@ -85,63 +85,53 @@ static func _project_from_dict(data: Dictionary) -> ProjectLoadResult:
 		underlay.offset = r.vector2(raw, "offset", "underlay")
 		project.underlay = underlay
 
-	var nodes := r.objects(data, "nodes")
-	for i in nodes.size():
-		var ctx := "nodes[%d]" % i
+	r.each_object(data, "nodes", func(entry: Dictionary, ctx: String) -> void:
 		var node := PlanNode.new()
-		node.id = r.text(nodes[i], "id", ctx)
-		node.pos = Vector2(r.number(nodes[i], "x", ctx), r.number(nodes[i], "z", ctx))
-		project.nodes.append(node)
+		node.id = r.text(entry, "id", ctx)
+		node.pos = Vector2(r.number(entry, "x", ctx), r.number(entry, "z", ctx))
+		project.nodes.append(node))
 
-	var walls := r.objects(data, "walls")
-	for i in walls.size():
-		var ctx := "walls[%d]" % i
+	r.each_object(data, "walls", func(entry: Dictionary, ctx: String) -> void:
 		var wall := Wall.new()
-		wall.id = r.text(walls[i], "id", ctx)
-		wall.a = r.text(walls[i], "a", ctx)
-		wall.b = r.text(walls[i], "b", ctx)
-		wall.thickness = r.number(walls[i], "thickness", ctx)
-		wall.height = r.number(walls[i], "height", ctx, project.wall_height)
-		project.walls.append(wall)
+		wall.id = r.text(entry, "id", ctx)
+		wall.a = r.text(entry, "a", ctx)
+		wall.b = r.text(entry, "b", ctx)
+		wall.thickness = r.number(entry, "thickness", ctx)
+		wall.height = r.number(entry, "height", ctx, project.wall_height)
+		project.walls.append(wall))
 
-	var openings := r.objects(data, "openings")
-	for i in openings.size():
-		var ctx := "openings[%d]" % i
+	r.each_object(data, "openings", func(entry: Dictionary, ctx: String) -> void:
 		var opening := Opening.new()
-		opening.id = r.text(openings[i], "id", ctx)
-		opening.wall_id = r.text(openings[i], "wall", ctx)
-		opening.kind = r.text(openings[i], "type", ctx)
-		opening.offset = r.number(openings[i], "offset", ctx)
-		opening.width = r.number(openings[i], "width", ctx)
-		opening.height = r.number(openings[i], "height", ctx)
-		opening.sill = r.number(openings[i], "sill", ctx, 0.0)
-		opening.swing = r.text(openings[i], "swing", ctx, "none")
-		project.openings.append(opening)
+		opening.id = r.text(entry, "id", ctx)
+		opening.wall_id = r.text(entry, "wall", ctx)
+		opening.kind = r.text(entry, "type", ctx)
+		opening.offset = r.number(entry, "offset", ctx)
+		opening.width = r.number(entry, "width", ctx)
+		opening.height = r.number(entry, "height", ctx)
+		opening.sill = r.number(entry, "sill", ctx, 0.0)
+		opening.swing = r.text(entry, "swing", ctx, "none")
+		project.openings.append(opening))
 
-	var rooms := r.objects(data, "rooms")
-	for i in rooms.size():
-		var ctx := "rooms[%d]" % i
+	r.each_object(data, "rooms", func(entry: Dictionary, ctx: String) -> void:
 		var room := Room.new()
-		room.id = r.text(rooms[i], "id", ctx)
-		room.name = r.text(rooms[i], "name", ctx)
-		room.node_ids = r.texts(rooms[i], "nodes", ctx)
-		room.floor_kind = r.text(rooms[i], "floor", ctx, "wood")
-		project.rooms.append(room)
+		room.id = r.text(entry, "id", ctx)
+		room.name = r.text(entry, "name", ctx)
+		room.node_ids = r.texts(entry, "nodes", ctx)
+		room.floor_kind = r.text(entry, "floor", ctx, "wood")
+		project.rooms.append(room))
 
-	var furniture := r.objects(data, "furniture")
-	for i in furniture.size():
-		var ctx := "furniture[%d]" % i
+	r.each_object(data, "furniture", func(entry: Dictionary, ctx: String) -> void:
 		var item := FurnitureItem.new()
-		item.id = r.text(furniture[i], "id", ctx)
-		item.preset = r.optional_text(furniture[i], "preset", ctx)
-		item.glb = r.optional_text(furniture[i], "glb", ctx)
-		item.name = r.text(furniture[i], "name", ctx)
-		var size := r.numbers(furniture[i], "size", ctx, 3)
+		item.id = r.text(entry, "id", ctx)
+		item.preset = r.optional_text(entry, "preset", ctx)
+		item.glb = r.optional_text(entry, "glb", ctx)
+		item.name = r.text(entry, "name", ctx)
+		var size := r.numbers(entry, "size", ctx, 3)
 		item.size = Vector3(size[0], size[2], size[1])
-		item.color = r.color(furniture[i], "color", ctx)
-		item.pos = r.vector2(furniture[i], "pos", ctx)
-		item.rotation_deg = r.number(furniture[i], "rot", ctx, 0.0)
-		project.furniture.append(item)
+		item.color = r.color(entry, "color", ctx)
+		item.pos = r.vector2(entry, "pos", ctx)
+		item.rotation_deg = r.number(entry, "rot", ctx, 0.0)
+		project.furniture.append(item))
 
 	if not r.errors.is_empty():
 		return ProjectLoadResult.failure(r.errors)
@@ -218,19 +208,19 @@ class _Reader:
 		_fail(ctx, key, "doit être un objet")
 		return {}
 
-	## A top-level list of objects; absent reads as an empty list.
-	func objects(data: Dictionary, key: String) -> Array[Dictionary]:
-		var result: Array[Dictionary] = []
+	## Visits each object of a top-level list with its location (e.g. "nodes[2]") built from the
+	## original index; absent reads as an empty list and non-object entries are reported, not visited.
+	func each_object(data: Dictionary, key: String, visit: Callable) -> void:
 		var value = data.get(key, [])
 		if typeof(value) != TYPE_ARRAY:
 			_fail("projet", key, "doit être une liste")
-			return result
+			return
 		for i in value.size():
+			var ctx := "%s[%d]" % [key, i]
 			if typeof(value[i]) == TYPE_DICTIONARY:
-				result.append(value[i])
+				visit.call(value[i], ctx)
 			else:
-				errors.append("%s[%d] : doit être un objet" % [key, i])
-		return result
+				errors.append("%s : doit être un objet" % ctx)
 
 	func _fail(ctx: String, key: String, expectation: String) -> void:
 		errors.append("%s : « %s » %s" % [ctx, key, expectation])

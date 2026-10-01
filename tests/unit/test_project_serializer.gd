@@ -139,6 +139,16 @@ func test_rejects_list_entry_that_is_not_an_object() -> void:
 	_assert_rejected(_load(data), "nodes[4] : doit être un objet")
 
 
+func test_errors_keep_original_index_after_a_non_object_entry() -> void:
+	var data := Fixtures.square_room_dict()
+	data["nodes"].insert(1, "oops")
+	data["nodes"][2].erase("x")
+	var result := _load(data)
+	assert_false(result.is_ok(), "should be rejected")
+	assert_string_contains("\n".join(result.errors), "nodes[1] : doit être un objet")
+	assert_string_contains("\n".join(result.errors), "nodes[2] : « x »")
+
+
 func test_rejects_bad_vector_length() -> void:
 	var data := Fixtures.square_room_dict()
 	data["furniture"][0]["size"] = [2.1, 0.9]
