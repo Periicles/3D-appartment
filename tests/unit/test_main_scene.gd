@@ -16,6 +16,9 @@ func _remove_test_files() -> void:
 
 func before_each() -> void:
 	_remove_test_files()
+	# The store is a global autoload: start every test from a clean project, so
+	# an edit left by a previous test never triggers the "save changes?" dialog.
+	ProjectStore.new_project()
 
 
 func after_each() -> void:
@@ -204,3 +207,57 @@ func test_closing_the_window_with_unsaved_changes_asks_first() -> void:
 	assert_eq(quits[0], 0)
 	files.answer_confirmation(&"discard")
 	assert_eq(quits[0], 1)
+
+
+
+func _press_key(main: Node3D, keycode: Key) -> void:
+	var event := InputEventKey.new()
+	event.pressed = true
+	event.keycode = keycode
+	main._unhandled_key_input(event)
+
+
+func test_tab_toggles_the_plan_view_with_its_hint_and_underlay() -> void:
+	var main := await _main()
+	var camera := main.get_node("Camera") as OrbitCamera
+	_press_key(main, KEY_TAB)
+	assert_true(camera.is_plan_mode())
+	assert_true((main.get_node("Underlay") as UnderlayView).visible, "bundled log16 plan")
+	var hint := main.find_child("Hint", true, false) as Label
+	assert_true(hint.visible)
+	assert_string_contains(hint.text, "Vue plan")
+	_press_key(main, KEY_P)
+	assert_false((main.get_node("Underlay") as UnderlayView).visible)
+	_press_key(main, KEY_O)
+	assert_false(camera.is_plan_mode())
+	assert_false(hint.visible)
+
+
+func test_m_toggles_measuring_with_a_hint() -> void:
+	var main := await _main()
+	var measure := main.get_node("MeasureTool") as MeasureTool
+	_press_key(main, KEY_M)
+	assert_true(measure.is_active())
+	assert_string_contains((main.find_child("Hint", true, false) as Label).text, "Mesure")
+	_press_key(main, KEY_M)
+	assert_false(measure.is_active())
+
+
+func test_measure_tool_takes_clicks_before_the_furniture_tool() -> void:
+	var main := await _main()
+	assert_gt(main.get_node("MeasureTool").get_index(), main.get_node("FurnitureTool").get_index())
+
+
+func test_selecting_furniture_shows_its_clearances() -> void:
+	var main := await _main()
+	ProjectStore.add_furniture(preload("res://tests/fixtures/project_fixtures.gd").sofa("f1"))
+	(main.get_node("FurnitureTool") as FurnitureTool)._select("f1")
+	assert_gt((main.get_node("Clearances") as ClearanceView).visible_sides().size(), 0)
+
+
+func test_opening_another_project_clears_measurements() -> void:
+	var main := await _main()
+	var measure := main.get_node("MeasureTool") as MeasureTool
+	measure._measurements.append([Vector2.ZERO, Vector2.ONE])
+	(main.find_child("FileController", true, false) as FileController).new_empty()
+	assert_eq(measure.measurements().size(), 0)

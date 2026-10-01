@@ -46,6 +46,21 @@ Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Au pavé t
 
 Les meubles sont enregistrés avec le projet (voir « Fichiers »).
 
+### Vue plan et mesures
+
+| Action | Contrôle |
+|---|---|
+| Vue plan (de dessus), ou retour à la vue orbitale | Tab |
+| Vue orbitale | O |
+| Afficher ou masquer le calque du plan d'architecte (en vue plan) | P |
+| Se déplacer en vue plan | Clic droit ou clic molette + glisser, ou deux doigts |
+| Mesurer | M, puis clic sur deux points |
+| Effacer toutes les mesures | Échap |
+
+- **Cotes en direct** : autour du meuble sélectionné, déplacé ou en cours de pose, les distances libres jusqu'au mur ou au meuble le plus proche s'affichent en cm, de chaque côté.
+- **Mesure** : les points s'aimantent sur les coins et les faces des murs et des meubles. Les mesures restent affichées jusqu'à Échap, et ne sont pas enregistrées dans le projet.
+- **Calque** : il est cherché à côté du fichier projet, puis parmi les plans livrés avec l'application.
+
 ### Fichiers
 
 Au lancement, une **page d'accueil** permet de choisir le projet :

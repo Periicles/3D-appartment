@@ -1,7 +1,8 @@
 extends Node3D
 ## Application root: lighting, camera, the 3D view of the open project, the
-## furniture tool, the collapsible side panels, the shortcuts help and the
-## File menu (with autosave).
+## furniture tool, measurements (live clearances, free measuring), plan view
+## with the architect's underlay, the collapsible side panels, the shortcuts
+## help and the File menu (with autosave).
 
 const SUN_ROTATION_DEG := Vector3(-50, -40, 0)
 const SUN_COLOR := Color("#ffe6c7")
@@ -14,6 +15,9 @@ const SHADOW_BLUR := 0.6
 const SHADOW_MAX_DISTANCE := 40.0
 const HELP_BUTTON_MARGIN := 12.0
 const HELP_BUTTON_SIZE := 36.0
+const HINT_MARGIN := 16.0
+const HINT_MEASURE := "Mesure : cliquez deux points · M pour quitter · Échap pour tout effacer"
+const HINT_PLAN := "Vue plan · P : calque · Tab : vue orbitale"
 
 ## Where preferences and the autosave are kept; tests point them elsewhere.
 var settings_path := UiSettings.DEFAULT_PATH
@@ -32,6 +36,10 @@ var _help: ShortcutsOverlay
 var _autosave: Autosave
 var _files: FileController
 var _welcome: WelcomeScreen
+var _clearances: ClearanceView
+var _underlay: UnderlayView
+var _measure: MeasureTool
+var _hint: Label
 
 
 func _ready() -> void:
@@ -57,6 +65,21 @@ func _ready() -> void:
 	add_child(_tool)
 	_furniture.bind_store(ProjectStore)
 	_tool.setup(ProjectStore, _furniture, _camera)
+	_clearances = ClearanceView.new()
+	add_child(_clearances)
+	_clearances.bind(_tool, ProjectStore)
+	_underlay = UnderlayView.new()
+	add_child(_underlay)
+	var measures := Node3D.new()
+	measures.name = "Measures"
+	add_child(measures)
+	# After the furniture tool: while measuring, clicks go to the measure tool first.
+	_measure = MeasureTool.new()
+	_measure.name = "MeasureTool"
+	add_child(_measure)
+	_measure.setup(ProjectStore, _camera, measures)
+	_measure.active_changed.connect(_refresh_hint.unbind(1))
+	_camera.view_mode_changed.connect(_on_view_mode_changed)
 	_autosave = Autosave.new()
 	_autosave.project_path = autosave_project_path
 	_autosave.meta_path = autosave_meta_path
@@ -69,6 +92,7 @@ func _ready() -> void:
 	_apply_ui_scale()
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	ProjectStore.project_loaded.connect(_on_project_loaded)
+	ProjectStore.path_changed.connect(_on_path_changed)
 	_files.startup()
 
 
@@ -99,6 +123,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_files.save()
 		&"save_as":
 			_files.save_as()
+		&"plan_view":
+			_camera.toggle_plan_mode()
+		&"orbit_view":
+			_camera.set_plan_mode(false)
+		&"underlay":
+			_underlay.toggle()
+		&"measure":
+			_measure.toggle()
 		&"zoom_in":
 			_change_zoom(_settings.zoom_in)
 		&"zoom_out":
@@ -135,6 +167,31 @@ func _apply_ui_scale() -> void:
 func _on_project_loaded() -> void:
 	_view.show_project(ProjectStore.project)
 	_camera.frame_project(ProjectStore.project)
+	_measure.clear_all()
+	_clearances.clear()
+	_underlay.show_project(ProjectStore.project, ProjectStore.current_path)
+
+
+## The underlay image is looked up next to the project file, which may have moved.
+func _on_path_changed(_path: String) -> void:
+	_underlay.show_project(ProjectStore.project, ProjectStore.current_path)
+
+
+func _on_view_mode_changed(plan: bool) -> void:
+	_view.set_cutaway_suspended(plan)
+	_underlay.set_plan_view(plan)
+	_refresh_hint()
+
+
+## Bottom hint describing the active mode(s); hidden in the default view.
+func _refresh_hint() -> void:
+	var lines := PackedStringArray()
+	if _camera.is_plan_mode():
+		lines.append(HINT_PLAN)
+	if _measure.is_active():
+		lines.append(HINT_MEASURE)
+	_hint.text = "\n".join(lines)
+	_hint.visible = not lines.is_empty()
 
 
 func _ui() -> CanvasLayer:
@@ -159,6 +216,7 @@ func _ui() -> CanvasLayer:
 	_inspector_side.setup(properties, CollapsibleSide.Side.RIGHT, "Inspecteur")
 	_ui_root.add_child(_inspector_side)
 	_ui_root.add_child(_help_button())
+	_ui_root.add_child(_hint_label())
 	_ui_root.add_child(_menu_bar())
 	_ui_root.add_child(_welcome)
 	_help = ShortcutsOverlay.new()
@@ -173,6 +231,20 @@ func _menu_bar() -> MenuBar:
 	bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	return bar
+
+
+func _hint_label() -> Label:
+	_hint = Label.new()
+	_hint.name = "Hint"
+	_hint.add_theme_stylebox_override("normal", Palette.panel_style())
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hint.offset_bottom = -HINT_MARGIN
+	_hint.visible = false
+	return _hint
 
 
 func _help_button() -> Button:
