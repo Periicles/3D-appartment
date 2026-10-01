@@ -44,7 +44,27 @@ Au lancement, l'application ouvre le plan du log 16 (`data/log16.json`).
 
 Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Au pavé tactile, pivotez avec R ou le champ Rotation. Le panneau de droite modifie le nom, les dimensions, la couleur, la position et la rotation du meuble sélectionné.
 
-Les meubles ne sont pas encore enregistrés : la sauvegarde arrive avec le jalon M3.
+Les meubles sont enregistrés avec le projet (voir « Fichiers »).
+
+### Fichiers
+
+Au lancement, une **page d'accueil** permet de choisir le projet :
+- les 8 projets récents (un projet introuvable apparaît grisé, et la croix le retire de la liste) ;
+- « Nouveau projet vide », « Nouveau depuis le log 16 » ou « Ouvrir un fichier… ».
+
+Elle reste accessible ensuite par Fichier › Accueil… ou ⌘/Ctrl + Maj + O. Échap la referme dès qu'un projet est ouvert.
+
+| Action | Contrôle |
+|---|---|
+| Page d'accueil (choisir un projet) | ⌘/Ctrl + Maj + O |
+| Ouvrir un projet | ⌘/Ctrl + O |
+| Enregistrer | ⌘/Ctrl + S (le premier enregistrement demande un emplacement) |
+| Enregistrer sous | ⌘/Ctrl + Maj + S |
+
+Sur macOS, le menu Fichier se trouve dans la barre de menus du système. Un projet est un fichier `.json`, lisible et modifiable à la main.
+
+- Le titre de la fenêtre affiche `*` tant qu'il reste des modifications non enregistrées. Fermer la fenêtre ou changer de projet demande alors s'il faut enregistrer.
+- Une **sauvegarde automatique** est écrite 2 s après chaque modification. Après un plantage ou une fermeture forcée, la page d'accueil propose de restaurer ce travail. Elle est supprimée dès que le projet est enregistré.
 
 ### Interface
 
