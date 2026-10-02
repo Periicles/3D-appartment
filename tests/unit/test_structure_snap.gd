@@ -68,3 +68,17 @@ func test_a_lone_corner_only_snaps_to_the_grid() -> void:
 	project.nodes.assign([Fixtures.plan_node("a", 0, 0)])
 	assert_almost_eq(StructureSnap.snap_node(project, "a", Vector2(0.92, 0.07), false),
 		Vector2(0.9, 0.05), Vector2(EPS, EPS))
+
+
+func test_a_far_crossing_is_ignored() -> void:
+	# Guides through b (horizontal) and d (15°) cross at (1.27, 0), yet the mouse
+	# is 0.35 m away from that crossing while within reach of both guides.
+	var project := ProjectData.new()
+	var e := Vector2(5, 1) + Vector2.from_angle(deg_to_rad(15.0)) * 2.0
+	project.nodes.assign([Fixtures.plan_node("a", -3, 0), Fixtures.plan_node("b", 0, 0),
+		Fixtures.plan_node("c", 1.6, 0), Fixtures.plan_node("d", 5, 1),
+		Fixtures.plan_node("e", e.x, e.y)])
+	project.walls.assign([Fixtures.wall("w1", "a", "b"), Fixtures.wall("w2", "b", "c"),
+		Fixtures.wall("w3", "d", "c"), Fixtures.wall("w4", "d", "e")])
+	var snapped := StructureSnap.snap_node(project, "c", Vector2(1.62, 0.01), false)
+	assert_almost_eq(snapped, Vector2(1.62, 0.0), Vector2(EPS, EPS))

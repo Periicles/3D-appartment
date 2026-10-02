@@ -5,8 +5,9 @@ extends RefCounted
 ## Beyond this multiple of the wall thickness a miter turns into a square cut,
 ## so acute corners do not grow long spikes.
 const MITER_LIMIT := 2.0
-## Two walls meeting at a node within this angle of a straight line form one
-## "through" wall: corners dragged by hand are rarely exactly aligned.
+## At a junction with a branch (3+ walls), two walls within this angle of a
+## straight line form one "through" wall: corners dragged by hand are rarely
+## exactly aligned. Two walls alone stay mitred unless exactly straight.
 const THROUGH_TOLERANCE_DEG := 3.0
 const _PARALLEL_EPSILON := 1e-6
 
@@ -120,7 +121,9 @@ static func _solve_node(project: ProjectData, node: PlanNode, corners: Dictionar
 ## stop on its face instead of slanting it.
 static func _through_flags(ends: Array) -> Array[bool]:
 	var flags: Array[bool] = []
-	var opposite := -cos(deg_to_rad(THROUGH_TOLERANCE_DEG))
+	var opposite := -1.0 + _PARALLEL_EPSILON
+	if ends.size() > 2:
+		opposite = -cos(deg_to_rad(THROUGH_TOLERANCE_DEG))
 	for e in ends:
 		var is_through := false
 		for other in ends:

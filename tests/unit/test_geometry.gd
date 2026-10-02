@@ -155,3 +155,15 @@ func test_a_clear_bend_is_mitred_not_through() -> void:
 		if _has_point(footprints["w2"], p):
 			shared += 1
 	assert_eq(shared, 2, "14° bend: mitred joint")
+
+
+func test_a_slight_bend_without_branch_stays_mitred() -> void:
+	var project := _project(
+		[["a", 0, 0], ["m", 2, 0], ["b", 4, 2.0 * tan(deg_to_rad(2.0))]],
+		[["w1", "a", "m", 0.2], ["w2", "m", "b", 0.2]])
+	var footprints := Geometry.wall_footprints(project)
+	var shared := 0
+	for p in footprints["w1"]:
+		if _has_point(footprints["w2"], p):
+			shared += 1
+	assert_eq(shared, 2, "2° bend without a branch: mitred joint")

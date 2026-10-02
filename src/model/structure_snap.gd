@@ -10,6 +10,9 @@ const GUIDE_DISTANCE := 0.1
 ## Guides crossing at a shallower angle are not combined (the crossing point
 ## would run far from the mouse).
 const MIN_CROSSING_DEG := 10.0
+## The crossing of two guides is used only this close to the mouse, in metres;
+## farther, the nearest guide alone wins.
+const MAX_CROSSING_SHIFT := 0.2
 
 
 ## Where the corner `node_id` lands when dragged to `raw`. With `free_move`
@@ -17,7 +20,7 @@ const MIN_CROSSING_DEG := 10.0
 static func snap_node(project: ProjectData, node_id: String, raw: Vector2, free_move: bool) -> Vector2:
 	if free_move:
 		return raw
-	var near := []  # [distance, guide]
+	var near: Array[Array] = []  # [distance, guide]
 	for guide in guides(project, node_id):
 		var distance := _distance_to_line(raw, guide)
 		if distance <= GUIDE_DISTANCE:
@@ -33,7 +36,7 @@ static func snap_node(project: ProjectData, node_id: String, raw: Vector2, free_
 		if absf(best.dir.cross(other.dir)) < sin(deg_to_rad(MIN_CROSSING_DEG)):
 			continue
 		var crossing = Geometry2D.line_intersects_line(best.origin, best.dir, other.origin, other.dir)
-		if crossing != null:
+		if crossing != null and crossing.distance_to(raw) <= MAX_CROSSING_SHIFT:
 			return crossing
 	return _project_on_line(raw, best)
 
