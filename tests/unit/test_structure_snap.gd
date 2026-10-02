@@ -26,7 +26,13 @@ func test_far_from_any_guide_snaps_to_the_grid() -> void:
 func test_near_square_locks_the_wall_at_ninety_degrees() -> void:
 	var snapped := StructureSnap.snap_node(_l_shape(), "c", Vector2(4.07, 3.13), false)
 	assert_almost_eq(snapped.x, 4.0, EPS, "w2 stays perpendicular to w1")
-	assert_almost_eq(snapped.y, 3.13, EPS, "the length follows the mouse")
+	assert_almost_eq(snapped.y, 3.15, EPS, "the length snaps to the grid")
+
+
+func test_a_guide_lock_also_snaps_along_the_guide() -> void:
+	var snapped := StructureSnap.snap_node(_l_shape(), "c", Vector2(4.03, 2.47), false)
+	assert_almost_eq(snapped.x, 4.0, EPS, "locked on the vertical guide")
+	assert_almost_eq(snapped.y, 2.45, EPS, "the length from b is a multiple of 5 cm")
 
 
 func test_near_forty_five_degrees_locks_the_diagonal() -> void:
@@ -81,4 +87,4 @@ func test_a_far_crossing_is_ignored() -> void:
 	project.walls.assign([Fixtures.wall("w1", "a", "b"), Fixtures.wall("w2", "b", "c"),
 		Fixtures.wall("w3", "d", "c"), Fixtures.wall("w4", "d", "e")])
 	var snapped := StructureSnap.snap_node(project, "c", Vector2(1.62, 0.01), false)
-	assert_almost_eq(snapped, Vector2(1.62, 0.0), Vector2(EPS, EPS))
+	assert_almost_eq(snapped, Vector2(1.6, 0.0), Vector2(EPS, EPS), "the horizontal guide alone, snapped along it")

@@ -1,7 +1,8 @@
 class_name StructureSnap
 extends RefCounted
 ## Magnetism for a dragged corner: its walls lock to 0/45/90° against the
-## walls at their other end, else the corner snaps to the grid.
+## walls at their other end, else the corner snaps to the grid. Along a guide
+## the length is snapped to the grid too, so walls keep round lengths.
 
 const GRID := 0.05
 const ANGLE_STEP_DEG := 45.0
@@ -38,7 +39,7 @@ static func snap_node(project: ProjectData, node_id: String, raw: Vector2, free_
 		var crossing = Geometry2D.line_intersects_line(best.origin, best.dir, other.origin, other.dir)
 		if crossing != null and crossing.distance_to(raw) <= MAX_CROSSING_SHIFT:
 			return crossing
-	return _project_on_line(raw, best)
+	return _snap_along_line(raw, best)
 
 
 ## Lines the corner may lock onto: through each neighbouring corner, at every
@@ -71,5 +72,5 @@ static func _distance_to_line(point: Vector2, guide: Dictionary) -> float:
 	return absf(guide.dir.cross(point - guide.origin))
 
 
-static func _project_on_line(point: Vector2, guide: Dictionary) -> Vector2:
-	return guide.origin + guide.dir * guide.dir.dot(point - guide.origin)
+static func _snap_along_line(point: Vector2, guide: Dictionary) -> Vector2:
+	return guide.origin + guide.dir * snappedf(guide.dir.dot(point - guide.origin), GRID)
