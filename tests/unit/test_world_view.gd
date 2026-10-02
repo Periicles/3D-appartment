@@ -148,6 +148,7 @@ func test_refresh_keeps_lowered_walls_lowered_without_a_tween() -> void:
 	assert_eq(_scale_y("w1"), 1.0)
 	_view.update_cutaway(LOOKING_NORTH)
 	assert_eq(get_tree().get_processed_tweens().size(), 0, "nothing left to animate")
+	await wait_physics_frames(1)
 
 
 func test_wall_display_height_follows_the_cutaway() -> void:
@@ -167,3 +168,4 @@ func test_highlighted_wall_survives_a_refresh_and_can_be_cleared() -> void:
 	_view.highlight_wall("")
 	assert_null((_view.get_node("Walls/w2/Body") as CSGPolygon3D).material_override)
 	assert_eq(_view.highlighted_wall(), "")
+	await wait_physics_frames(1)
