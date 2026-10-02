@@ -207,3 +207,19 @@ func test_undo_and_redo_emit_structure_changed() -> void:
 	_store.undo()
 	_store.redo()
 	assert_signal_emit_count(_store, "structure_changed", 2)
+
+
+func test_a_structure_edit_survives_saving_and_reopening() -> void:
+	var path := "user://test_structure_roundtrip.json"
+	assert_true(_store.move_node("n3", Vector2(5.25, 4.5)))
+	assert_true(_store.update_wall("w2", {"thickness": 0.173}))
+	assert_true(_store.remove_wall("w1"))
+	assert_eq(_store.save_to_file(path), PackedStringArray())
+	var reopened: Node = autofree(Store.new())
+	assert_eq(reopened.load_from_file(path), PackedStringArray())
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	assert_almost_eq(reopened.project.get_plan_node("n3").pos, Vector2(5.25, 4.5), Vector2(EPS, EPS))
+	assert_almost_eq(reopened.project.get_wall("w2").thickness, 0.173, EPS)
+	assert_null(reopened.project.get_wall("w1"))
+	assert_true(reopened.project.openings.is_empty(), "the door of w1 went with it")
+	assert_eq(reopened.project.walls.size(), 3)
