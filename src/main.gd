@@ -1,8 +1,8 @@
 extends Node3D
 ## Application root: lighting, camera, the 3D view of the open project, the
-## furniture tool, measurements (live clearances, free measuring), plan view
-## with the architect's underlay, the collapsible side panels, the shortcuts
-## help and the File menu (with autosave).
+## Furniture and Structure modes with their tools, measurements (live
+## clearances, free measuring), plan view with the architect's underlay, the
+## collapsible side panels, the shortcuts help and the File menu (with autosave).
 
 const SUN_ROTATION_DEG := Vector3(-50, -40, 0)
 const SUN_COLOR := Color("#ffe6c7")
@@ -20,6 +20,11 @@ const HINT_MARGIN := 16.0
 const HINT_MAX_WIDTH := 460.0
 const HINT_MEASURE := "Mesure : cliquez deux points · M pour quitter · Échap pour tout effacer"
 const HINT_PLAN := "Vue plan · P : calque · Tab : vue orbitale"
+## Keys that change the project or the edit mode: ignored under an overlay,
+## where the user cannot see their effect.
+const OVERLAY_BLOCKED_ACTIONS: Array[StringName] = [&"furniture_mode", &"structure_mode", &"undo", &"redo"]
+const HINT_STRUCTURE := "Structure : glissez un coin ou cliquez un mur\nmaintenir Alt en glissant : sans aimant · Échap : désélectionner · 1 : meubles"
+const TOP_BAR_MARGIN := 8.0
 
 ## Where preferences and the autosave are kept; tests point them elsewhere.
 var settings_path := UiSettings.DEFAULT_PATH
@@ -42,6 +47,9 @@ var _clearances: ClearanceView
 var _underlay: UnderlayView
 var _measure: MeasureTool
 var _hint: Label
+var _structure_tool: StructureTool
+var _catalog: CatalogPanel
+var _mode_buttons := {}  # ProjectStore.EditMode -> Button
 
 
 func _ready() -> void:
@@ -67,6 +75,12 @@ func _ready() -> void:
 	add_child(_tool)
 	_furniture.bind_store(ProjectStore)
 	_tool.setup(ProjectStore, _furniture, _camera)
+	var overlay := StructureView.new()
+	add_child(overlay)
+	_structure_tool = StructureTool.new()
+	_structure_tool.name = "StructureTool"
+	add_child(_structure_tool)
+	_structure_tool.setup(ProjectStore, _camera, _view, overlay)
 	_clearances = ClearanceView.new()
 	add_child(_clearances)
 	_clearances.bind(_tool, ProjectStore)
@@ -95,6 +109,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	ProjectStore.project_loaded.connect(_on_project_loaded)
 	ProjectStore.path_changed.connect(_on_path_changed)
+	ProjectStore.structure_changed.connect(_on_structure_changed)
+	ProjectStore.edit_mode_changed.connect(_on_edit_mode_changed)
+	_on_edit_mode_changed(ProjectStore.edit_mode)
 	_files.startup()
 
 
@@ -108,7 +125,10 @@ func _notification(what: int) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	match Shortcuts.action_for(event as InputEventKey):
+	var action := Shortcuts.action_for(event as InputEventKey)
+	if action in OVERLAY_BLOCKED_ACTIONS and _overlay_is_open():
+		return
+	match action:
 		&"cutaway":
 			_view.cycle_cutaway_mode()
 		&"toggle_catalog":
@@ -133,6 +153,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_underlay.toggle()
 		&"measure":
 			_measure.toggle()
+		&"furniture_mode":
+			_set_mode(ProjectStore.EditMode.FURNITURE)
+		&"structure_mode":
+			_set_mode(ProjectStore.EditMode.STRUCTURE)
+		&"undo":
+			if not _is_dragging():
+				ProjectStore.undo()
+		&"redo":
+			if not _is_dragging():
+				ProjectStore.redo()
 		&"zoom_in":
 			_change_zoom(_settings.zoom_in)
 		&"zoom_out":
@@ -142,6 +172,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_:
 			return
 	get_viewport().set_input_as_handled()
+
+
+## A drag's release would overwrite whatever an undo reverted.
+func _is_dragging() -> bool:
+	return _tool.is_dragging() or _structure_tool.is_dragging()
+
+
+## A focused panel field commits before the mode (and its panel) changes.
+func _set_mode(mode: ProjectStore.EditMode) -> void:
+	get_viewport().gui_release_focus()
+	ProjectStore.set_edit_mode(mode)
 
 
 func _change_zoom(step: Callable) -> void:
@@ -180,6 +221,19 @@ func _on_path_changed(_path: String) -> void:
 	_underlay.show_project(ProjectStore.project, ProjectStore.current_path)
 
 
+func _on_structure_changed() -> void:
+	_view.refresh(ProjectStore.project)
+
+
+func _on_edit_mode_changed(mode: ProjectStore.EditMode) -> void:
+	var structure := mode == ProjectStore.EditMode.STRUCTURE
+	_furniture.set_dimmed(structure)
+	_catalog.set_enabled(not structure)
+	for key in _mode_buttons:
+		(_mode_buttons[key] as Button).set_pressed_no_signal(key == mode)
+	_refresh_hint()
+
+
 func _on_measure_active_changed(active: bool) -> void:
 	if active:
 		# A ghost would keep following the mouse while clicks go to measuring.
@@ -193,9 +247,15 @@ func _on_view_mode_changed(plan: bool) -> void:
 	_refresh_hint()
 
 
+func _overlay_is_open() -> bool:
+	return _help.visible or _welcome.visible
+
+
 ## Bottom hint describing the active mode(s); hidden in the default view.
 func _refresh_hint() -> void:
 	var lines := PackedStringArray()
+	if ProjectStore.edit_mode == ProjectStore.EditMode.STRUCTURE:
+		lines.append(HINT_STRUCTURE)
 	if _camera.is_plan_mode():
 		lines.append(HINT_PLAN)
 	if _measure.is_active():
@@ -211,23 +271,20 @@ func _ui() -> CanvasLayer:
 	_ui_root.name = "Root"
 	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_ui_root)
-	var catalog := CatalogPanel.new()
-	catalog.populate(FurnitureCatalog.load_presets())
-	catalog.preset_chosen.connect(_tool.begin_placement)
+	_catalog = CatalogPanel.new()
+	_catalog.populate(FurnitureCatalog.load_presets())
+	_catalog.preset_chosen.connect(_tool.begin_placement)
 	_catalog_side = CollapsibleSide.new()
 	_catalog_side.name = "CatalogSide"
-	_catalog_side.setup(catalog, CollapsibleSide.Side.LEFT, "Catalogue")
+	_catalog_side.setup(_catalog, CollapsibleSide.Side.LEFT, "Catalogue")
 	_ui_root.add_child(_catalog_side)
-	var properties := PropertiesPanel.new()
-	properties.bind_store(ProjectStore)
-	_tool.selection_changed.connect(properties.show_item)
 	_inspector_side = CollapsibleSide.new()
 	_inspector_side.name = "InspectorSide"
-	_inspector_side.setup(properties, CollapsibleSide.Side.RIGHT, "Inspecteur")
+	_inspector_side.setup(_inspector(), CollapsibleSide.Side.RIGHT, "Inspecteur")
 	_ui_root.add_child(_inspector_side)
 	_ui_root.add_child(_help_button())
 	_ui_root.add_child(_hint_label())
-	_ui_root.add_child(_menu_bar())
+	_ui_root.add_child(_top_bar())
 	_ui_root.add_child(_welcome)
 	_help = ShortcutsOverlay.new()
 	_help.build()
@@ -235,11 +292,52 @@ func _ui() -> CanvasLayer:
 	return layer
 
 
-## On macOS the File menu goes to the system menu bar; elsewhere it sits at the top centre.
-func _menu_bar() -> MenuBar:
-	var bar := _files.build_menu()
+## The furniture properties and the structure panel share the right side; at
+## most one shows, depending on the mode's selection.
+func _inspector() -> VBoxContainer:
+	var stack := VBoxContainer.new()
+	stack.name = "Inspector"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var properties := PropertiesPanel.new()
+	properties.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	properties.bind_store(ProjectStore)
+	_tool.selection_changed.connect(properties.show_item)
+	stack.add_child(properties)
+	var structure := StructurePanel.new()
+	structure.bind_store(ProjectStore)
+	_structure_tool.selection_changed.connect(structure.show_selection)
+	stack.add_child(structure)
+	return stack
+
+
+## Top centre: the File menu (on macOS it goes to the system menu bar instead)
+## above the mode switch.
+func _top_bar() -> VBoxContainer:
+	var bar := VBoxContainer.new()
+	bar.name = "TopBar"
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The native macOS menu leaves the MenuBar empty; the default gap would still
+	# push the mode buttons down.
+	bar.add_theme_constant_override("separation", 0)
 	bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bar.offset_top = TOP_BAR_MARGIN
+	bar.add_child(_files.build_menu())
+	var modes := HBoxContainer.new()
+	modes.name = "ModeBar"
+	var group := ButtonGroup.new()
+	for entry in [[ProjectStore.EditMode.FURNITURE, "Meubles", "1"], [ProjectStore.EditMode.STRUCTURE, "Structure", "2"]]:
+		var button := Button.new()
+		button.name = entry[1]
+		button.text = "%s  %s" % [entry[1], entry[2]]
+		button.toggle_mode = true
+		button.button_group = group
+		button.focus_mode = Control.FOCUS_NONE
+		Palette.apply_toggle_style(button)
+		button.pressed.connect(_set_mode.bind(entry[0]))
+		modes.add_child(button)
+		_mode_buttons[entry[0]] = button
+	bar.add_child(modes)
 	return bar
 
 

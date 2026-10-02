@@ -178,3 +178,21 @@ func test_side_panels_are_padded() -> void:
 	var properties := _properties()
 	for panel in [catalog, properties]:
 		assert_gt((panel as PanelContainer).get_theme_stylebox("panel").content_margin_left, 0.0)
+
+
+func test_catalog_can_be_greyed_out() -> void:
+	var panel: CatalogPanel = add_child_autofree(CatalogPanel.new())
+	panel.populate(FurnitureCatalog.load_presets())
+	panel.set_enabled(false)
+	assert_true(panel.button_for("bed_160").disabled)
+	panel.set_enabled(true)
+	assert_false(panel.button_for("bed_160").disabled)
+
+
+func test_toggle_style_marks_the_on_state() -> void:
+	var button: Button = add_child_autofree(Button.new())
+	button.toggle_mode = true
+	Palette.apply_toggle_style(button)
+	var on := button.get_theme_stylebox("pressed") as StyleBoxFlat
+	assert_eq(on.bg_color, Palette.SELECTION)
+	assert_eq(on.get_margin(SIDE_LEFT), button.get_theme_stylebox("normal").get_margin(SIDE_LEFT))

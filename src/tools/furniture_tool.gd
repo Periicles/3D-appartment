@@ -1,8 +1,8 @@
 class_name FurnitureTool
 extends Node
 ## Mouse and keyboard editing of furniture: place from the catalogue, select,
-## drag, rotate, delete, duplicate, undo/redo. Changes go through the store;
-## the view only shows previews while the mouse is down.
+## drag, rotate, delete, duplicate. Only active in the Furniture mode. Changes
+## go through the store; the view only shows previews while the mouse is down.
 ## Call setup() after the view's bind_store(), so the view has already reacted
 ## to a store signal when this tool reads the selection back.
 
@@ -41,6 +41,15 @@ func setup(p_store: Node, p_view: FurnitureView, p_camera: Camera3D) -> void:
 	store.furniture_removed.connect(_on_furniture_removed)
 	store.furniture_changed.connect(_on_furniture_changed)
 	store.project_loaded.connect(_on_project_loaded)
+	store.edit_mode_changed.connect(_on_edit_mode_changed)
+
+
+func is_active() -> bool:
+	return store != null and store.edit_mode == store.EditMode.FURNITURE
+
+
+func is_dragging() -> bool:
+	return _dragging
 
 
 func is_placing() -> bool:
@@ -53,6 +62,8 @@ func selected_id() -> String:
 
 ## Starts placing a new item: a ghost follows the mouse until a left click.
 func begin_placement(preset: FurniturePreset) -> void:
+	if not is_active():
+		return
 	_select("")
 	_placing = preset
 	_ghost_rotation = 0.0
@@ -69,7 +80,7 @@ func cancel_placement() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if store == null:
+	if not is_active():
 		return
 	if event is InputEventMouseMotion:
 		_on_mouse_motion(event)
@@ -150,14 +161,7 @@ func _finish_drag() -> void:
 
 func _on_key(event: InputEventKey) -> void:
 	var command := event.is_command_or_control_pressed()
-	if command and event.keycode == KEY_Z:
-		if _dragging:
-			return  # The release would overwrite whatever the undo reverted.
-		if event.shift_pressed:
-			store.redo()
-		else:
-			store.undo()
-	elif command and event.keycode == KEY_D:
+	if command and event.keycode == KEY_D:
 		if selected_id() != "" and not _dragging:
 			_select(store.duplicate_furniture(selected_id()))
 	elif event.keycode == KEY_ESCAPE:
@@ -269,3 +273,13 @@ func _refresh_focus() -> void:
 func _on_project_loaded() -> void:
 	cancel_placement()
 	_sync_selection()
+
+
+func _on_edit_mode_changed(_mode: int) -> void:
+	if is_active():
+		return
+	cancel_placement()
+	if _dragging:
+		_dragging = false
+		view.update_item(store.get_furniture(selected_id()))  # Drops the drag preview.
+	_select("")

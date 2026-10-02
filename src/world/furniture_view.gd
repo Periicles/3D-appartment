@@ -5,10 +5,13 @@ extends Node3D
 
 ## Contains a space, which ProjectValidator forbids in ids, so it never clashes with an item.
 const GHOST_NAME := "Ghost preview"
+## Opacity of the blocks while the structure is edited.
+const DIMMED_ALPHA := 0.4
 
 var _selected_id := ""
 var _outline := Palette.outline_material()
 var _store: Node
+var _dimmed := false
 
 
 ## Keeps the blocks in sync with a ProjectStore (the autoload, or a test double).
@@ -48,6 +51,7 @@ func add_item(item: FurnitureItem) -> void:
 	node.name = item.id
 	add_child(node)
 	_place(node, item.pos, item.rotation_deg)
+	_apply_dim(node, item.color)
 
 
 ## Rebuilds the item's block from its current data.
@@ -58,7 +62,7 @@ func update_item(item: FurnitureItem) -> void:
 	var box := node.get_node("Box") as MeshInstance3D
 	(box.mesh as BoxMesh).size = item.size
 	box.position.y = item.size.y / 2.0
-	(box.material_override as StandardMaterial3D).albedo_color = item.color
+	_apply_dim(node, item.color)
 	_place(node, item.pos, item.rotation_deg)
 
 
@@ -90,6 +94,21 @@ func set_selected(id: String) -> void:
 
 func selected_id() -> String:
 	return _selected_id
+
+
+## Fades every block (Structure mode), or restores them.
+func set_dimmed(dimmed: bool) -> void:
+	_dimmed = dimmed
+	if _store == null:
+		return
+	for item in _store.project.furniture:
+		var node := get_node_or_null(NodePath(item.id))
+		if node != null:
+			_apply_dim(node, item.color)
+
+
+func is_dimmed() -> bool:
+	return _dimmed
 
 
 func show_ghost(size: Vector3, color: Color) -> void:
@@ -124,6 +143,14 @@ func _set_outline(id: String, on: bool) -> void:
 		return
 	var mat := (node.get_node("Box") as MeshInstance3D).material_override as StandardMaterial3D
 	mat.next_pass = _outline if on else null
+
+
+func _apply_dim(node: Node, color: Color) -> void:
+	var mat := (node.get_node("Box") as MeshInstance3D).material_override as StandardMaterial3D
+	var shown := color
+	shown.a = DIMMED_ALPHA if _dimmed else 1.0
+	mat.albedo_color = shown
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if _dimmed else BaseMaterial3D.TRANSPARENCY_DISABLED
 
 
 static func _block(size: Vector3, material: StandardMaterial3D) -> Node3D:

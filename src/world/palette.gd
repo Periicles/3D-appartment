@@ -45,6 +45,23 @@ static func outline_material() -> StandardMaterial3D:
 	return mat
 
 
+## Toggle button that shows clearly when it is on (the mode switch).
+static func apply_toggle_style(button: Button) -> void:
+	# Same margins as the theme's button, so the text keeps its room when on.
+	var normal := button.get_theme_stylebox("normal")
+	var on := normal.duplicate() as StyleBoxFlat
+	if on == null:
+		# A theme may supply a non-flat box, which cannot be tinted: keep only its margins.
+		on = StyleBoxFlat.new()
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			on.set_content_margin(side, normal.get_margin(side))
+	on.bg_color = SELECTION
+	for state in ["pressed", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, on)
+	for state in ["font_pressed_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(state, PANEL_BACKGROUND)
+
+
 ## Background shared by the interface panels: dark, slightly transparent, padded.
 static func panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

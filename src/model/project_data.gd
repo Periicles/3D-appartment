@@ -45,3 +45,33 @@ func wall_length(wall: Wall) -> float:
 	if a == null or b == null:
 		return -1.0
 	return a.pos.distance_to(b.pos)
+
+
+## Deep copy: editing the copy never changes this project. The underlay is
+## shared, as nothing edits it.
+func copy() -> ProjectData:
+	var other := ProjectData.new()
+	other.name = name
+	other.wall_height = wall_height
+	other.north_angle = north_angle
+	other.underlay = underlay
+	for node in nodes:
+		other.nodes.append(node.copy())
+	for wall in walls:
+		other.walls.append(wall.copy())
+	for opening in openings:
+		other.openings.append(opening.copy())
+	for room in rooms:
+		other.rooms.append(room.copy())
+	for item in furniture:
+		other.furniture.append(item.copy())
+	return other
+
+
+## Walls whose start or end is this node.
+func walls_at(node_id: String) -> Array[Wall]:
+	var found: Array[Wall] = []
+	for wall in walls:
+		if wall.a == node_id or wall.b == node_id:
+			found.append(wall)
+	return found

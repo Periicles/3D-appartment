@@ -125,3 +125,47 @@ func test_resuming_recomputes_the_cutaway() -> void:
 	_view.update_cutaway(LOOKING_NORTH)
 	await wait_seconds(TWEEN_WAIT)
 	assert_almost_eq(_scale_y("w3"), 0.08, 1e-3)
+
+
+func test_refresh_rebuilds_from_the_given_project() -> void:
+	var moved := Fixtures.square_room()
+	moved.get_plan_node("n3").pos = Vector2(5, 5)
+	_view.refresh(moved)
+	await wait_physics_frames(1)
+	assert_eq(_view.get_node("Walls").get_child_count(), 4)
+	var body := _view.get_node("Walls/w2/Body") as CSGPolygon3D
+	var reaches_new_corner := false
+	for p in body.polygon:
+		reaches_new_corner = reaches_new_corner or p.distance_to(Vector2(5, 5)) < 0.3
+	assert_true(reaches_new_corner, "w2 follows n3: %s" % [body.polygon])
+
+
+func test_refresh_keeps_lowered_walls_lowered_without_a_tween() -> void:
+	_view.update_cutaway(LOOKING_NORTH)
+	await wait_seconds(TWEEN_WAIT)
+	_view.refresh(Fixtures.square_room())
+	assert_almost_eq(_scale_y("w3"), 0.08, 1e-3, "still lowered right away")
+	assert_eq(_scale_y("w1"), 1.0)
+	_view.update_cutaway(LOOKING_NORTH)
+	assert_eq(get_tree().get_processed_tweens().size(), 0, "nothing left to animate")
+	await wait_physics_frames(1)
+
+
+func test_wall_display_height_follows_the_cutaway() -> void:
+	assert_almost_eq(_view.wall_display_height("w3"), 2.5, 1e-3)
+	_view.update_cutaway(LOOKING_NORTH)
+	await wait_seconds(TWEEN_WAIT)
+	assert_almost_eq(_view.wall_display_height("w3"), 0.2, 1e-3)
+	assert_eq(_view.wall_display_height("nope"), 0.0)
+
+
+func test_highlighted_wall_survives_a_refresh_and_can_be_cleared() -> void:
+	_view.highlight_wall("w2")
+	var body := _view.get_node("Walls/w2/Body") as CSGPolygon3D
+	assert_not_null(body.material_override)
+	_view.refresh(Fixtures.square_room())
+	assert_not_null((_view.get_node("Walls/w2/Body") as CSGPolygon3D).material_override, "kept after a rebuild")
+	_view.highlight_wall("")
+	assert_null((_view.get_node("Walls/w2/Body") as CSGPolygon3D).material_override)
+	assert_eq(_view.highlighted_wall(), "")
+	await wait_physics_frames(1)

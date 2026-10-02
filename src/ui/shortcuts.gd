@@ -43,9 +43,16 @@ static func groups() -> Array[Dictionary]:
 			_entry(["shift", "Molette (souris)"], "Pivoter de ±15°"),
 			_entry(["Suppr / ⌫"], "Supprimer"),
 			_entry(["cmd", "D"], "Dupliquer"),
-			_entry(["cmd", "Z"], "Annuler"),
-			_entry(["cmd", "shift", "Z"], "Rétablir"),
 			_entry(["Échap"], "Abandonner l'ajout ou désélectionner"),
+		]),
+		_group("Structure", [
+			_entry(["1"], "Mode Meubles"),
+			_entry(["2"], "Mode Structure : coins et murs"),
+			_entry(["Clic sur un coin + glisser"], "Déplacer le coin et ses murs"),
+			_entry(["alt"], "Déplacement libre, sans aimant (en glissant)"),
+			_entry(["Clic sur un mur"], "Sélectionner le mur"),
+			_entry(["Suppr / ⌫"], "Supprimer le mur sélectionné"),
+			_entry(["Échap"], "Désélectionner"),
 		]),
 		_group("Vue et mesures", [
 			_entry(["Tab"], "Vue plan, ou retour à la vue orbitale"),
@@ -53,6 +60,10 @@ static func groups() -> Array[Dictionary]:
 			_entry(["P"], "Calque du plan d'architecte (en vue plan)"),
 			_entry(["M"], "Mesurer : cliquer deux points"),
 			_entry(["Échap"], "Effacer toutes les mesures"),
+		]),
+		_group("Historique", [
+			_entry(["cmd", "Z"], "Annuler (passe dans le mode de la modification)"),
+			_entry(["cmd", "shift", "Z"], "Rétablir"),
 		]),
 		_group("Fichier", [
 			_entry(["cmd", "shift", "O"], "Accueil : choisir un projet"),
@@ -75,12 +86,15 @@ static func groups() -> Array[Dictionary]:
 ## The interface action a key press triggers: &"toggle_catalog",
 ## &"toggle_inspector", &"help", &"cutaway", &"zoom_in", &"zoom_out",
 ## &"zoom_reset", &"welcome", &"open", &"save", &"save_as", &"plan_view",
-## &"orbit_view", &"underlay", &"measure", or &"" for none. Accepts the QWERTY and AZERTY variants.
+## &"orbit_view", &"underlay", &"measure", &"furniture_mode", &"structure_mode",
+## &"undo", &"redo", or &"" for none. Accepts the QWERTY and AZERTY variants.
 static func action_for(event: InputEventKey) -> StringName:
 	if not event.pressed or event.echo:
 		return &""
 	var character := char(event.unicode) if event.unicode > 0 else ""
 	if event.is_command_or_control_pressed():
+		if event.keycode == KEY_Z:
+			return &"redo" if event.shift_pressed else &"undo"
 		if event.keycode == KEY_O:
 			return &"welcome" if event.shift_pressed else &"open"
 		if event.keycode == KEY_S:
@@ -96,6 +110,11 @@ static func action_for(event: InputEventKey) -> StringName:
 		return &""
 	if character == "?" or event.keycode == KEY_F1:
 		return &"help"
+	# AZERTY types "&" and "é" on the digit keys: the physical key decides.
+	if event.physical_keycode == KEY_1 or event.keycode in [KEY_1, KEY_KP_1]:
+		return &"furniture_mode"
+	if event.physical_keycode == KEY_2 or event.keycode in [KEY_2, KEY_KP_2]:
+		return &"structure_mode"
 	match event.keycode:
 		KEY_TAB:
 			# Shift + Tab is reverse focus traversal.
@@ -119,6 +138,12 @@ static func action_for(event: InputEventKey) -> StringName:
 static func furniture_hint(mac: bool = is_mac()) -> String:
 	return "R : pivoter · %s : ±15°\nSuppr : supprimer · %s : dupliquer\n%s : annuler · ? : tous les raccourcis" % [
 		format_keys(["shift", "Molette"], mac), format_keys(["cmd", "D"], mac), format_keys(["cmd", "Z"], mac)]
+
+
+## Short reminder shown under the structure panel.
+static func structure_hint(mac: bool = is_mac()) -> String:
+	return "Glisser un coin · maintenir %s : sans aimant\nSuppr : supprimer le mur · Échap : désélectionner\n%s : annuler · 1 : meubles · ? : raccourcis" % [
+		format_keys(["alt"], mac), format_keys(["cmd", "Z"], mac)]
 
 
 static func _group(title: String, entries: Array) -> Dictionary:

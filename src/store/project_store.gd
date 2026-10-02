@@ -11,11 +11,25 @@ signal path_changed(path: String)
 signal furniture_added(id: String)
 signal furniture_changed(id: String)
 signal furniture_removed(id: String)
+## Corners, walls, openings or rooms changed (edit, undo or redo).
+signal structure_changed
+signal edit_mode_changed(mode: EditMode)
+
+## Furniture and structure are edited in separate modes, so a stray click or
+## key in one never changes the other.
+enum EditMode { FURNITURE, STRUCTURE }
 
 ## Fields of a FurnitureItem that update_furniture accepts.
 const EDITABLE_FIELDS: PackedStringArray = ["name", "size", "color", "pos", "rotation_deg"]
 ## Offset of a duplicate from its original, so both stay visible.
 const DUPLICATE_OFFSET := Vector2(0.3, 0.3)
+## Fields of a Wall that update_wall accepts; "length" moves the end node `b`.
+const WALL_FIELDS: PackedStringArray = ["length", "thickness", "height"]
+## Shortest wall an edit may leave, in metres (shorter ones have no footprint).
+const MIN_WALL_LENGTH := 0.05
+## Undo actions named with this prefix edit the structure; undoing or redoing
+## one switches to the Structure mode, so the change happens where it is seen.
+const STRUCTURE_ACTION_PREFIX := "Structure : "
 
 var project: ProjectData = ProjectData.new()
 ## File the project was opened from or last saved to; "" for a new project.
@@ -23,6 +37,7 @@ var current_path := ""
 var _history := UndoRedo.new()
 ## History version at the last open or save; -1 when restored unsaved work.
 var _saved_version := 0
+var edit_mode := EditMode.FURNITURE
 
 
 func _init() -> void:
@@ -102,10 +117,10 @@ func next_furniture_id() -> String:
 	return "f%d" % (highest + 1)
 
 
-## Adds a copy of `item`. Returns false (and changes nothing) if the item is
-## invalid or its id is already used.
+## Adds a copy of `item`. Returns false (and changes nothing) outside the
+## Furniture mode, or if the item is invalid or its id is already used.
 func add_furniture(item: FurnitureItem) -> bool:
-	if get_furniture(item.id) != null or not _is_valid(item):
+	if edit_mode != EditMode.FURNITURE or get_furniture(item.id) != null or not _is_valid(item):
 		return false
 	var stored := item.copy()
 	_begin_action("Ajouter %s" % stored.name)
@@ -119,7 +134,7 @@ func add_furniture(item: FurnitureItem) -> bool:
 ## (and changes nothing) for an unknown id, unknown field or invalid result.
 func update_furniture(id: String, changes: Dictionary) -> bool:
 	var item := get_furniture(id)
-	if item == null or changes.is_empty():
+	if edit_mode != EditMode.FURNITURE or item == null or changes.is_empty():
 		return false
 	var previous := {}
 	var preview := item.copy()
@@ -139,7 +154,7 @@ func update_furniture(id: String, changes: Dictionary) -> bool:
 
 func remove_furniture(id: String) -> bool:
 	var item := get_furniture(id)
-	if item == null:
+	if edit_mode != EditMode.FURNITURE or item == null:
 		return false
 	var index := project.furniture.find(item)
 	_begin_action("Supprimer %s" % item.name)
@@ -153,7 +168,7 @@ func remove_furniture(id: String) -> bool:
 ## "" for an unknown id.
 func duplicate_furniture(id: String) -> String:
 	var item := get_furniture(id)
-	if item == null:
+	if edit_mode != EditMode.FURNITURE or item == null:
 		return ""
 	var clone := item.copy()
 	clone.id = next_furniture_id()
@@ -161,11 +176,68 @@ func duplicate_furniture(id: String) -> String:
 	return clone.id if add_furniture(clone) else ""
 
 
+func set_edit_mode(mode: EditMode) -> void:
+	if mode == edit_mode:
+		return
+	edit_mode = mode
+	edit_mode_changed.emit(mode)
+
+
+## Moves a corner, dragging every wall joined to it. Returns false (and changes
+## nothing) outside the Structure mode, for an unknown id, or when a wall would
+## become too short or an opening would no longer fit, or for a non-finite `pos`.
+func move_node(id: String, pos: Vector2) -> bool:
+	if edit_mode != EditMode.STRUCTURE or not pos.is_finite():
+		return false
+	var node := project.get_plan_node(id)
+	if node == null or node.pos.is_equal_approx(pos):
+		return false
+	return _edit_structure("déplacer un coin", _set_node_pos.bind(id, pos))
+
+
+## True when move_node(id, pos) would be accepted (live drag feedback).
+func can_move_node(id: String, pos: Vector2) -> bool:
+	if not pos.is_finite():
+		return false
+	var probe := project.copy()
+	return probe.get_plan_node(id) != null and _set_node_pos(probe, id, pos) and _is_buildable(probe)
+
+
+## Applies `changes` (keys from WALL_FIELDS, in metres) to the wall. A new
+## length moves its end node `b` along the wall. Values must be finite numbers
+## above zero. Same refusals as move_node, plus when nothing would change.
+func update_wall(id: String, changes: Dictionary) -> bool:
+	var wall := project.get_wall(id)
+	if wall == null or changes.is_empty():
+		return false
+	for key in changes:
+		if not key in WALL_FIELDS or not _is_positive_number(changes[key]):
+			return false
+	if not changes.keys().any(func(key: String) -> bool: return not _wall_field_is(wall, key, changes[key])):
+		return false
+	return _edit_structure("modifier un mur", _set_wall_fields.bind(id, changes.duplicate()))
+
+
+## Deletes the wall and the openings it carries. Corners left without any wall
+## or room are deleted too.
+func remove_wall(id: String) -> bool:
+	if project.get_wall(id) == null:
+		return false
+	return _edit_structure("supprimer un mur", _delete_wall.bind(id))
+
+
+## Undoes the last edit, first switching to the mode it was made in.
 func undo() -> bool:
+	if not _history.has_undo():
+		return false
+	_follow_action(_history.get_current_action_name())
 	return _history.undo()
 
 
 func redo() -> bool:
+	if not _history.has_redo():
+		return false
+	_follow_action(_history.get_action_name(_history.get_current_action() + 1))
 	return _history.redo()
 
 
@@ -183,6 +255,7 @@ func _replace(new_project_data: ProjectData, path: String, dirty := false) -> vo
 	# Without a version bump: clearing is not an edit.
 	_history.clear_history(false)
 	_saved_version = -1 if dirty else _history.get_version()
+	set_edit_mode(EditMode.FURNITURE)
 	project_loaded.emit()
 	path_changed.emit(path)
 	dirty_changed.emit(dirty)
@@ -223,3 +296,90 @@ func _is_valid(item: FurnitureItem) -> bool:
 	var probe := ProjectData.new()
 	probe.furniture.append(item)
 	return ProjectValidator.validate(probe).is_empty()
+
+
+func _follow_action(action_name: String) -> void:
+	var structure := action_name.begins_with(STRUCTURE_ACTION_PREFIX)
+	set_edit_mode(EditMode.STRUCTURE if structure else EditMode.FURNITURE)
+
+
+## Applies `edit` (returns false to refuse) to a copy of the project and, if the
+## result is buildable, records the swap of structure states as one undo step.
+func _edit_structure(action_name: String, edit: Callable) -> bool:
+	if edit_mode != EditMode.STRUCTURE:
+		return false
+	var probe := project.copy()
+	if not edit.call(probe) or not _is_buildable(probe):
+		return false
+	_begin_action(STRUCTURE_ACTION_PREFIX + action_name)
+	_history.add_do_method(_restore_structure.bind(probe.copy()))
+	_history.add_undo_method(_restore_structure.bind(project.copy()))
+	_history.commit_action()
+	return true
+
+
+## Takes the corners, walls, openings and rooms of `state` (copied again, so the
+## recorded state stays untouched by later edits).
+func _restore_structure(state: ProjectData) -> void:
+	var fresh := state.copy()
+	project.nodes = fresh.nodes
+	project.walls = fresh.walls
+	project.openings = fresh.openings
+	project.rooms = fresh.rooms
+	structure_changed.emit()
+
+
+func _is_buildable(probe: ProjectData) -> bool:
+	for wall in probe.walls:
+		if probe.wall_length(wall) < MIN_WALL_LENGTH:
+			return false
+	return ProjectValidator.validate(probe).is_empty()
+
+
+static func _is_positive_number(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) and float(value) > 0.0
+
+
+func _wall_field_is(wall: Wall, key: String, value: Variant) -> bool:
+	var current: float = project.wall_length(wall) if key == "length" else wall.get(key)
+	return is_equal_approx(current, float(value))
+
+
+static func _set_node_pos(probe: ProjectData, id: String, pos: Vector2) -> bool:
+	var node := probe.get_plan_node(id)
+	if node == null:
+		return false
+	node.pos = pos
+	return true
+
+
+static func _set_wall_fields(probe: ProjectData, id: String, changes: Dictionary) -> bool:
+	var wall := probe.get_wall(id)
+	for key in changes:
+		if key == "length":
+			var a := probe.get_plan_node(wall.a)
+			var b := probe.get_plan_node(wall.b)
+			var direction := (b.pos - a.pos).normalized()
+			if direction.is_zero_approx():
+				return false
+			b.pos = a.pos + direction * float(changes[key])
+		else:
+			wall.set(key, changes[key])
+	return true
+
+
+static func _delete_wall(probe: ProjectData, id: String) -> bool:
+	var wall := probe.get_wall(id)
+	probe.walls.erase(wall)
+	probe.openings.assign(probe.openings.filter(func(o: Opening) -> bool: return o.wall_id != id))
+	for node_id in [wall.a, wall.b]:
+		if probe.walls_at(node_id).is_empty() and not _in_a_room(probe, node_id):
+			probe.nodes.erase(probe.get_plan_node(node_id))
+	return true
+
+
+static func _in_a_room(probe: ProjectData, node_id: String) -> bool:
+	for room in probe.rooms:
+		if node_id in room.node_ids:
+			return true
+	return false

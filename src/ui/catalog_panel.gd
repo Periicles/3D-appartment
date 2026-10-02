@@ -46,5 +46,11 @@ func populate(presets: Array[FurniturePreset]) -> void:
 		list.add_child(button)
 
 
+## Greys out every preset (Structure mode), or enables them again.
+func set_enabled(enabled: bool) -> void:
+	for button in find_children("*", "Button", true, false):
+		(button as Button).disabled = not enabled
+
+
 func button_for(preset_id: String) -> Button:
 	return find_child(preset_id, true, false) as Button

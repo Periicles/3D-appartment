@@ -34,3 +34,25 @@ func test_wall_length_handles_diagonal_walls() -> void:
 func test_wall_length_is_negative_when_node_missing() -> void:
 	var project := Fixtures.square_room()
 	assert_eq(project.wall_length(Fixtures.wall("w", "n1", "missing")), -1.0)
+
+
+func test_copy_is_deep() -> void:
+	var original := Fixtures.square_room()
+	var clone := original.copy()
+	clone.get_plan_node("n1").pos = Vector2(9, 9)
+	clone.get_wall("w1").thickness = 0.5
+	clone.openings[0].width = 2.0
+	clone.rooms[0].node_ids[0] = "n2"
+	clone.furniture[0].name = "X"
+	assert_eq(original.get_plan_node("n1").pos, Vector2.ZERO)
+	assert_almost_eq(original.get_wall("w1").thickness, 0.2, 1e-6)
+	assert_almost_eq(original.openings[0].width, 0.8, 1e-6)
+	assert_eq(original.rooms[0].node_ids[0], "n1")
+	assert_eq(original.furniture[0].name, "Canapé")
+	assert_eq(ProjectSerializer.to_json(clone.copy()), ProjectSerializer.to_json(clone), "every field copied")
+
+
+func test_walls_at_lists_walls_on_either_end() -> void:
+	var project := Fixtures.square_room()
+	var ids := project.walls_at("n1").map(func(w: Wall) -> String: return w.id)
+	assert_eq(ids, ["w1", "w4"])
