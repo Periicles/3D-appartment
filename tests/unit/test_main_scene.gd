@@ -40,7 +40,7 @@ func _main(open_template := true) -> Node3D:
 	return main
 
 
-func _press(main: Node3D, keycode: Key, command := false, unicode := 0) -> void:
+func _press(main: Node3D, keycode: Key, command := false, unicode := 0, shift := false) -> void:
 	var event := InputEventKey.new()
 	event.pressed = true
 	event.keycode = keycode
@@ -48,6 +48,7 @@ func _press(main: Node3D, keycode: Key, command := false, unicode := 0) -> void:
 	event.unicode = unicode
 	event.ctrl_pressed = command
 	event.meta_pressed = command
+	event.shift_pressed = shift
 	main._unhandled_key_input(event)
 
 
@@ -330,3 +331,86 @@ func test_catalogue_buttons_do_not_keep_keyboard_focus() -> void:
 func test_opening_a_project_loads_its_underlay() -> void:
 	var main := await _main()
 	assert_true((main.find_child("Underlay", true, false) as UnderlayView).has_image())
+
+
+func test_digit_keys_and_mode_bar_switch_the_edit_mode() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.STRUCTURE)
+	var furniture_button := main.find_child("ModeBar", true, false).get_node("Meubles") as Button
+	var structure_button := main.find_child("ModeBar", true, false).get_node("Structure") as Button
+	assert_true(structure_button.button_pressed)
+	assert_false(furniture_button.button_pressed)
+	furniture_button.pressed.emit()
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.FURNITURE)
+	_press_key(main, KEY_1)
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.FURNITURE)
+
+
+func test_structure_mode_dims_furniture_greys_the_catalog_and_shows_a_hint() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	assert_true((main.get_node("Furniture") as FurnitureView).is_dimmed())
+	var catalog := main.find_child("Catalog", true, false) as CatalogPanel
+	assert_true(catalog.button_for("sofa_3").disabled)
+	var hint := main.find_child("Hint", true, false) as Label
+	assert_true(hint.visible)
+	assert_string_contains(hint.text, "Structure")
+	_press_key(main, KEY_1)
+	assert_false((main.get_node("Furniture") as FurnitureView).is_dimmed())
+	assert_false(catalog.button_for("sofa_3").disabled)
+	assert_false(hint.visible)
+
+
+func test_selecting_a_corner_shows_the_structure_panel() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	var node_id: String = ProjectStore.project.nodes[0].id
+	(main.get_node("StructureTool") as StructureTool).select(&"node", node_id)
+	var panel := main.find_child("StructurePanel", true, false) as StructurePanel
+	assert_true(panel.visible)
+	assert_true((main.find_child("InspectorSide", true, false) as CollapsibleSide).is_ancestor_of(panel))
+
+
+func test_a_structure_edit_rebuilds_the_walls() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	var wall: Wall = ProjectStore.project.walls[0]
+	ProjectStore.update_wall(wall.id, {"height": 1.0})
+	await wait_physics_frames(1)
+	var body := main.get_node("World/Walls/%s/Body" % wall.id) as CSGPolygon3D
+	assert_almost_eq(body.depth, 1.0, EPS)
+
+
+func test_command_z_undoes_and_switches_back_to_the_edit_mode() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	var node: PlanNode = ProjectStore.project.nodes[0]
+	var start := node.pos
+	ProjectStore.move_node(node.id, start + Vector2(0.1, 0))
+	_press_key(main, KEY_1)
+	_press(main, KEY_Z, true)
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.STRUCTURE, "undo goes where the edit was made")
+	assert_eq(ProjectStore.project.get_plan_node(node.id).pos, start)
+	var structure_button := main.find_child("ModeBar", true, false).get_node("Structure") as Button
+	assert_true(structure_button.button_pressed)
+	_press(main, KEY_Z, true, 0, true)
+	assert_eq(ProjectStore.project.get_plan_node(node.id).pos, start + Vector2(0.1, 0), "⌘⇧Z redoes")
+
+
+func test_undo_is_ignored_while_dragging_furniture() -> void:
+	var main := await _main()
+	var tool := main.get_node("FurnitureTool") as FurnitureTool
+	ProjectStore.add_furniture(preload("res://tests/fixtures/project_fixtures.gd").sofa("f1"))
+	tool._select("f1")
+	tool._dragging = true
+	_press(main, KEY_Z, true)
+	assert_not_null(ProjectStore.get_furniture("f1"), "nothing undone mid-drag")
+	tool._dragging = false
+
+
+func test_structure_tool_sits_between_furniture_and_measure_tools() -> void:
+	var main := await _main()
+	var index := main.get_node("StructureTool").get_index()
+	assert_gt(index, main.get_node("FurnitureTool").get_index())
+	assert_lt(index, main.get_node("MeasureTool").get_index())

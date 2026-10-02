@@ -46,6 +46,26 @@ Un meuble approché à moins de 15 cm d'un mur s'y colle, dos au mur. Au pavé t
 
 Les meubles sont enregistrés avec le projet (voir « Fichiers »).
 
+### Structure
+
+Les meubles et la structure (coins et murs) se modifient dans deux modes séparés : un clic ou une touche dans un mode ne change jamais l'autre. Le mode actif est affiché en haut de la fenêtre.
+
+| Action | Contrôle |
+|---|---|
+| Mode Meubles | 1 (ou le bouton « Meubles ») |
+| Mode Structure | 2 (ou le bouton « Structure ») |
+| Déplacer un coin et ses murs | Clic sur le coin + glisser |
+| Déplacer sans aimant | Alt pendant le déplacement |
+| Sélectionner un mur | Clic sur le mur |
+| Supprimer le mur sélectionné | Suppr ou Retour arrière, ou le bouton du panneau |
+| Désélectionner, ou abandonner le déplacement | Échap |
+
+- **Aimant** : un coin déplacé aligne ses murs à 0, 45 ou 90° par rapport aux murs voisins, sinon il se cale sur une grille de 5 cm.
+- **Panneau** : position x/z du coin ; longueur, épaisseur et hauteur du mur. Changer la longueur déplace le coin de fin du mur.
+- **Refus** : un déplacement qui ferait dépasser une porte ou une fenêtre de son mur, ou réduirait un mur à moins de 5 cm, est refusé ; le coin s'arrête à la dernière position valide.
+- En mode Structure, les meubles sont estompés et le catalogue est grisé.
+- **Annuler (Ctrl/Cmd + Z)** repasse dans le mode où la modification a été faite.
+
 ### Vue plan et mesures
 
 | Action | Contrôle |

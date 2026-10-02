@@ -219,12 +219,10 @@ func test_command_d_duplicates_and_selects_the_copy() -> void:
 	assert_ne(_tool.selected_id(), id)
 
 
-func test_command_z_undoes_and_shift_redoes() -> void:
+func test_command_z_is_left_to_the_shortcuts() -> void:
 	_add_sofa(Vector2(2, 2))
 	_key(KEY_Z, true)
-	assert_eq(_store.project.furniture.size(), 0)
-	_key(KEY_Z, true, true)
-	assert_eq(_store.project.furniture.size(), 1)
+	assert_eq(_store.project.furniture.size(), 1, "undo is a global shortcut (main scene)")
 
 
 func test_undoing_the_selected_items_creation_clears_selection() -> void:
@@ -287,19 +285,43 @@ func test_rotating_during_a_drag_is_ignored() -> void:
 	assert_eq(_store.get_furniture(id).rotation_deg, 0.0)
 
 
-func test_undo_redo_during_a_drag_are_ignored() -> void:
-	var id := _add_sofa(Vector2(2, 2))
-	_store.update_furniture(id, {"name": "Renamed"})
+func test_is_dragging_reports_a_drag_in_progress() -> void:
+	_add_sofa(Vector2(2, 2))
 	_click(Vector2(2, 2))
-	_move(Vector2(2.5, 2.3), false, true)
-	_key(KEY_Z, true)
-	assert_eq(_store.get_furniture(id).name, "Renamed", "nothing undone while dragging")
-	_key(KEY_Z, true, true)
-	_click(Vector2(2.5, 2.3), false)
-	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2.5, 2.3), Vector2(EPS, EPS))
-	_store.undo()
-	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2, 2), Vector2(EPS, EPS), "release is one update step")
-	assert_eq(_store.get_furniture(id).name, "Renamed")
+	assert_true(_tool.is_dragging())
+	_click(Vector2(2, 2), false)
+	assert_false(_tool.is_dragging())
+
+
+func test_structure_mode_switches_the_tool_off() -> void:
+	var id := _add_sofa(Vector2(2, 2))
+	_tool._select(id)
+	_store.set_edit_mode(_store.EditMode.STRUCTURE)
+	assert_eq(_tool.selected_id(), "", "selection dropped")
+	_click(Vector2(2, 2))
+	assert_eq(_tool.selected_id(), "", "clicks ignored")
+	_tool.begin_placement(load(SOFA_PRESET))
+	assert_false(_tool.is_placing())
+	_store.set_edit_mode(_store.EditMode.FURNITURE)
+	_click(Vector2(2, 2))
+	assert_eq(_tool.selected_id(), id)
+
+
+func test_switching_mode_mid_drag_drops_the_preview() -> void:
+	var id := _add_sofa(Vector2(2, 2))
+	_click(Vector2(2, 2))
+	_move(Vector2(3, 3), false, true)
+	_store.set_edit_mode(_store.EditMode.STRUCTURE)
+	assert_false(_tool.is_dragging())
+	assert_almost_eq((_view.get_node(id) as Node3D).position, Vector3(2, 0, 2), Vector3(EPS, EPS, EPS))
+	assert_almost_eq(_store.get_furniture(id).pos, Vector2(2, 2), Vector2(EPS, EPS))
+
+
+func test_switching_mode_cancels_placement() -> void:
+	_tool.begin_placement(load(SOFA_PRESET))
+	_store.set_edit_mode(_store.EditMode.STRUCTURE)
+	assert_false(_tool.is_placing())
+	assert_false(_view.has_ghost())
 
 
 func test_scene_click_releases_gui_focus() -> void:
