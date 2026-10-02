@@ -24,6 +24,8 @@ func before_each() -> void:
 func after_each() -> void:
 	get_tree().root.content_scale_factor = 1.0
 	_remove_test_files()
+	# Walls rebuilt by a test are queue_freed: let them go before GUT counts orphans.
+	await wait_process_frames(1)
 
 
 ## The scene with its preferences redirected, so tests never touch the user's
@@ -345,6 +347,24 @@ func test_digit_keys_and_mode_bar_switch_the_edit_mode() -> void:
 	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.FURNITURE)
 	_press_key(main, KEY_1)
 	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.FURNITURE)
+
+
+func test_mode_and_undo_keys_do_nothing_under_the_help_overlay() -> void:
+	var main := await _main()
+	var help := main.find_child("Shortcuts", true, false) as ShortcutsOverlay
+	var node: PlanNode = ProjectStore.project.nodes[0]
+	var start := node.pos
+	var moved := start + Vector2(0.1, 0)
+	_press_key(main, KEY_2)
+	ProjectStore.move_node(node.id, moved)
+	help.open()
+	_press_key(main, KEY_1)
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.STRUCTURE, "1 is ignored")
+	_press(main, KEY_Z, true)
+	assert_almost_eq(ProjectStore.project.get_plan_node(node.id).pos, moved, Vector2(0.001, 0.001), "undo is ignored")
+	help.close()
+	_press(main, KEY_Z, true)
+	assert_almost_eq(ProjectStore.project.get_plan_node(node.id).pos, start, Vector2(0.001, 0.001), "undo works again")
 
 
 func test_structure_mode_dims_furniture_greys_the_catalog_and_shows_a_hint() -> void:

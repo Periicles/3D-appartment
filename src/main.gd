@@ -20,7 +20,10 @@ const HINT_MARGIN := 16.0
 const HINT_MAX_WIDTH := 460.0
 const HINT_MEASURE := "Mesure : cliquez deux points · M pour quitter · Échap pour tout effacer"
 const HINT_PLAN := "Vue plan · P : calque · Tab : vue orbitale"
-const HINT_STRUCTURE := "Structure : glissez un coin ou cliquez un mur · 1 : retour aux meubles"
+## Keys that change the project or the edit mode: ignored under an overlay,
+## where the user cannot see their effect.
+const OVERLAY_BLOCKED_ACTIONS: Array[StringName] = [&"furniture_mode", &"structure_mode", &"undo", &"redo"]
+const HINT_STRUCTURE := "Structure : glissez un coin ou cliquez un mur\nmaintenir Alt en glissant : sans aimant · Échap : désélectionner · 1 : meubles"
 const TOP_BAR_MARGIN := 8.0
 
 ## Where preferences and the autosave are kept; tests point them elsewhere.
@@ -122,7 +125,10 @@ func _notification(what: int) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	match Shortcuts.action_for(event as InputEventKey):
+	var action := Shortcuts.action_for(event as InputEventKey)
+	if action in OVERLAY_BLOCKED_ACTIONS and _overlay_is_open():
+		return
+	match action:
 		&"cutaway":
 			_view.cycle_cutaway_mode()
 		&"toggle_catalog":
@@ -241,6 +247,10 @@ func _on_view_mode_changed(plan: bool) -> void:
 	_refresh_hint()
 
 
+func _overlay_is_open() -> bool:
+	return _help.visible or _welcome.visible
+
+
 ## Bottom hint describing the active mode(s); hidden in the default view.
 func _refresh_hint() -> void:
 	var lines := PackedStringArray()
@@ -306,6 +316,9 @@ func _top_bar() -> VBoxContainer:
 	var bar := VBoxContainer.new()
 	bar.name = "TopBar"
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The native macOS menu leaves the MenuBar empty; the default gap would still
+	# push the mode buttons down.
+	bar.add_theme_constant_override("separation", 0)
 	bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	bar.offset_top = TOP_BAR_MARGIN

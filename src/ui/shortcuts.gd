@@ -142,7 +142,7 @@ static func furniture_hint(mac: bool = is_mac()) -> String:
 
 ## Short reminder shown under the structure panel.
 static func structure_hint(mac: bool = is_mac()) -> String:
-	return "Glisser un coin pour le déplacer · %s : sans aimant\nSuppr : supprimer le mur · 1 : meubles\n%s : annuler · ? : tous les raccourcis" % [
+	return "Glisser un coin · maintenir %s : sans aimant\nSuppr : supprimer le mur · Échap : désélectionner\n%s : annuler · 1 : meubles · ? : raccourcis" % [
 		format_keys(["alt"], mac), format_keys(["cmd", "Z"], mac)]
 
 
