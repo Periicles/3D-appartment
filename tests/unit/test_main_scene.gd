@@ -398,15 +398,59 @@ func test_command_z_undoes_and_switches_back_to_the_edit_mode() -> void:
 	assert_eq(ProjectStore.project.get_plan_node(node.id).pos, start + Vector2(0.1, 0), "⌘⇧Z redoes")
 
 
+## Sends a left-button event at a world point, as the viewport would after the GUI passed.
+func _mouse_at(main: Node3D, tool: Node, world_point: Vector3, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.position = (main.get_node("Camera") as Camera3D).unproject_position(world_point)
+	tool._unhandled_input(event)
+
+
 func test_undo_is_ignored_while_dragging_furniture() -> void:
+	var main := await _main()
+	var tool := main.get_node("FurnitureTool") as FurnitureTool
+	var sofa_center := Vector3(2.0, 0.4, 3.0)
+	ProjectStore.add_furniture(preload("res://tests/fixtures/project_fixtures.gd").sofa("f1"))
+	_mouse_at(main, tool, sofa_center, true)
+	assert_true(tool.is_dragging())
+	_press(main, KEY_Z, true)
+	assert_not_null(ProjectStore.get_furniture("f1"), "nothing undone mid-drag")
+	_mouse_at(main, tool, sofa_center, false)
+	assert_false(tool.is_dragging())
+
+
+func test_undo_and_redo_are_ignored_while_dragging_a_corner() -> void:
+	var main := await _main()
+	_press_key(main, KEY_2)
+	var tool := main.get_node("StructureTool") as StructureTool
+	var moved: PlanNode = ProjectStore.project.nodes[0]
+	var moved_to := moved.pos + Vector2(0.1, 0)
+	ProjectStore.move_node(moved.id, moved_to)
+	var grabbed: PlanNode = ProjectStore.project.nodes[3]
+	var grab_point := Vector3(grabbed.pos.x, StructureView.LIFT, grabbed.pos.y)
+	_mouse_at(main, tool, grab_point, true)
+	assert_true(tool.is_dragging())
+	_press(main, KEY_Z, true)
+	assert_eq(ProjectStore.project.get_plan_node(moved.id).pos, moved_to, "undo ignored mid-drag")
+	_press(main, KEY_Z, true, 0, true)
+	assert_eq(ProjectStore.project.get_plan_node(moved.id).pos, moved_to, "redo ignored mid-drag")
+	assert_true(ProjectStore.can_undo(), "the edit stays on the undo stack")
+	_mouse_at(main, tool, grab_point, false)
+	assert_false(tool.is_dragging())
+
+
+func test_switching_mode_commits_a_field_being_edited() -> void:
 	var main := await _main()
 	var tool := main.get_node("FurnitureTool") as FurnitureTool
 	ProjectStore.add_furniture(preload("res://tests/fixtures/project_fixtures.gd").sofa("f1"))
 	tool._select("f1")
-	tool._dragging = true
-	_press(main, KEY_Z, true)
-	assert_not_null(ProjectStore.get_furniture("f1"), "nothing undone mid-drag")
-	tool._dragging = false
+	var field := main.find_child("Name", true, false) as LineEdit
+	field.grab_focus()
+	field.text = "Banquette"
+	_press_key(main, KEY_2)
+	assert_eq(ProjectStore.get_furniture("f1").name, "Banquette")
+	assert_eq(ProjectStore.edit_mode, ProjectStore.EditMode.STRUCTURE)
 
 
 func test_structure_tool_sits_between_furniture_and_measure_tools() -> void:
