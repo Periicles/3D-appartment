@@ -1,5 +1,8 @@
 extends GutTest
 
+## The keycode AZERTY reports for its unshifted "2" key ("é", Latin-1).
+const E_ACUTE := 0xE9 as Key
+
 
 func test_mac_uses_symbols() -> void:
 	assert_eq(Shortcuts.format_keys(["cmd", "shift", "Z"], true), "⌘ ⇧ Z")
@@ -17,7 +20,8 @@ func test_plain_tokens_are_kept() -> void:
 
 func test_groups_cover_camera_furniture_and_interface() -> void:
 	var titles: Array = Shortcuts.groups().map(func(g: Dictionary) -> String: return g.title)
-	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Vue et mesures", "Fichier", "Interface"])
+	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Structure", "Vue et mesures",
+		"Historique", "Fichier", "Interface"])
 
 
 func test_every_entry_has_keys_and_action() -> void:
@@ -29,7 +33,7 @@ func test_every_entry_has_keys_and_action() -> void:
 
 
 func test_interface_group_lists_panel_help_and_zoom_keys() -> void:
-	var interface: Dictionary = Shortcuts.groups()[5]
+	var interface: Dictionary = _group("Interface")
 	var keys: Array = interface.entries.map(func(e: Dictionary) -> String: return Shortcuts.format_keys(e.keys, false))
 	for expected in ["C", "I", "? / F1", "Ctrl + +", "Ctrl + −", "Ctrl + 0", "H"]:
 		assert_has(keys, expected)
@@ -123,3 +127,40 @@ func test_command_view_keys_are_ignored() -> void:
 
 func test_shift_tab_is_not_the_plan_view() -> void:
 	assert_eq(Shortcuts.action_for(_key(KEY_TAB, 0, false, true)), &"")
+
+
+func _group(title: String) -> Dictionary:
+	for group in Shortcuts.groups():
+		if group.title == title:
+			return group
+	return {}
+
+
+func _action(keycode: Key, command := false, shift := false, physical := KEY_NONE) -> StringName:
+	var event := InputEventKey.new()
+	event.pressed = true
+	event.keycode = keycode
+	event.physical_keycode = physical if physical != KEY_NONE else keycode
+	event.ctrl_pressed = command
+	event.meta_pressed = command
+	event.shift_pressed = shift
+	return Shortcuts.action_for(event)
+
+
+func test_digit_keys_switch_mode_on_qwerty_azerty_and_keypad() -> void:
+	assert_eq(_action(KEY_1), &"furniture_mode")
+	assert_eq(_action(KEY_2), &"structure_mode")
+	assert_eq(_action(KEY_AMPERSAND, false, false, KEY_1), &"furniture_mode", "AZERTY &")
+	assert_eq(_action(E_ACUTE, false, false, KEY_2), &"structure_mode", "AZERTY é")
+	assert_eq(_action(KEY_KP_2), &"structure_mode")
+
+
+func test_command_z_undoes_and_shift_redoes() -> void:
+	assert_eq(_action(KEY_Z, true), &"undo")
+	assert_eq(_action(KEY_Z, true, true), &"redo")
+	assert_eq(_action(KEY_Z), &"", "plain Z does nothing")
+
+
+func test_structure_hint_is_platform_aware() -> void:
+	assert_string_contains(Shortcuts.structure_hint(true), "⌥")
+	assert_string_contains(Shortcuts.structure_hint(false), "Alt")
