@@ -255,9 +255,78 @@ func test_selecting_furniture_shows_its_clearances() -> void:
 	assert_gt((main.get_node("Clearances") as ClearanceView).visible_sides().size(), 0)
 
 
+func test_clearances_follow_a_neighbour_being_added_and_undone() -> void:
+	var main := await _main()
+	var fixtures := preload("res://tests/fixtures/project_fixtures.gd")
+	var clearances := main.get_node("Clearances") as ClearanceView
+	var a := fixtures.sofa("f1")
+	a.pos = Vector2(3.0, 3.0)
+	a.rotation_deg = 0.0
+	ProjectStore.add_furniture(a)
+	(main.get_node("FurnitureTool") as FurnitureTool)._select("f1")
+	var before := clearances.line("right").label_text()
+	var b := fixtures.sofa("f2")
+	b.rotation_deg = 0.0
+	b.pos = a.pos + Vector2(a.size.x / 2.0 + 0.5 + b.size.x / 2.0, 0.0)
+	ProjectStore.add_furniture(b)
+	assert_eq(clearances.line("right").label_text(), "50 cm", "the side facing the new item shows its distance")
+	ProjectStore.undo()
+	assert_eq(clearances.line("right").label_text(), before, "undo restores the wall distance")
+
+
 func test_opening_another_project_clears_measurements() -> void:
 	var main := await _main()
 	var measure := main.get_node("MeasureTool") as MeasureTool
-	measure._measurements.append([Vector2.ZERO, Vector2.ONE])
+	var center := Cutaway.apartment_center(ProjectStore.project)
+	measure.toggle()
+	var camera := main.get_node("Camera") as Camera3D
+	for offset in [Vector2(-0.5, 0), Vector2(0.5, 0)]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		click.position = camera.unproject_position(Vector3(center.x + offset.x, 0, center.y + offset.y))
+		measure._unhandled_input(click)
+	assert_eq(measure.measurements().size(), 1, "precondition: a real measurement exists")
+	assert_eq(main.get_node("Measures").get_child_count(), 2, "preview and one line")
 	(main.find_child("FileController", true, false) as FileController).new_empty()
+	await wait_physics_frames(1)
 	assert_eq(measure.measurements().size(), 0)
+	assert_eq(main.get_node("Measures").get_child_count(), 1, "only the preview remains")
+
+
+func test_starting_to_measure_cancels_a_placement_in_progress() -> void:
+	var main := await _main()
+	var tool := main.get_node("FurnitureTool") as FurnitureTool
+	tool.begin_placement(load("res://data/presets/sofa_3.tres"))
+	assert_true(tool.is_placing(), "precondition")
+	(main.get_node("MeasureTool") as MeasureTool).toggle()
+	assert_false(tool.is_placing())
+
+
+func test_leaving_the_measure_tool_keeps_a_placement_in_progress() -> void:
+	var main := await _main()
+	var measure := main.get_node("MeasureTool") as MeasureTool
+	measure.toggle()
+	var tool := main.get_node("FurnitureTool") as FurnitureTool
+	tool.begin_placement(load("res://data/presets/sofa_3.tres"))
+	measure.toggle()
+	assert_true(tool.is_placing())
+
+
+func test_the_hint_wraps_within_a_maximum_width() -> void:
+	var main := await _main()
+	var hint := main.find_child("Hint", true, false) as Label
+	assert_eq(hint.autowrap_mode, TextServer.AUTOWRAP_WORD_SMART)
+	assert_eq(hint.custom_minimum_size.x, main.HINT_MAX_WIDTH)
+
+
+func test_catalogue_buttons_do_not_keep_keyboard_focus() -> void:
+	var main := await _main()
+	var catalog := main.find_child("Catalog", true, false)
+	for button in catalog.find_children("*", "Button", true, false):
+		assert_eq((button as Button).focus_mode, Control.FOCUS_NONE)
+
+
+func test_opening_a_project_loads_its_underlay() -> void:
+	var main := await _main()
+	assert_true((main.find_child("Underlay", true, false) as UnderlayView).has_image())

@@ -16,6 +16,8 @@ const SHADOW_MAX_DISTANCE := 40.0
 const HELP_BUTTON_MARGIN := 12.0
 const HELP_BUTTON_SIZE := 36.0
 const HINT_MARGIN := 16.0
+## Keeps the hint between the two side panels and wraps it on narrow windows.
+const HINT_MAX_WIDTH := 460.0
 const HINT_MEASURE := "Mesure : cliquez deux points · M pour quitter · Échap pour tout effacer"
 const HINT_PLAN := "Vue plan · P : calque · Tab : vue orbitale"
 
@@ -78,7 +80,7 @@ func _ready() -> void:
 	_measure.name = "MeasureTool"
 	add_child(_measure)
 	_measure.setup(ProjectStore, _camera, measures)
-	_measure.active_changed.connect(_refresh_hint.unbind(1))
+	_measure.active_changed.connect(_on_measure_active_changed)
 	_camera.view_mode_changed.connect(_on_view_mode_changed)
 	_autosave = Autosave.new()
 	_autosave.project_path = autosave_project_path
@@ -169,12 +171,20 @@ func _on_project_loaded() -> void:
 	_camera.frame_project(ProjectStore.project)
 	_measure.clear_all()
 	_clearances.clear()
-	_underlay.show_project(ProjectStore.project, ProjectStore.current_path)
 
 
-## The underlay image is looked up next to the project file, which may have moved.
+## The store emits path_changed after every load, new and open, so this also
+## loads the underlay of a fresh project (once). The image is looked up next to
+## the project file, which may have moved.
 func _on_path_changed(_path: String) -> void:
 	_underlay.show_project(ProjectStore.project, ProjectStore.current_path)
+
+
+func _on_measure_active_changed(active: bool) -> void:
+	if active:
+		# A ghost would keep following the mouse while clicks go to measuring.
+		_tool.cancel_placement()
+	_refresh_hint()
 
 
 func _on_view_mode_changed(plan: bool) -> void:
@@ -238,6 +248,8 @@ func _hint_label() -> Label:
 	_hint.name = "Hint"
 	_hint.add_theme_stylebox_override("normal", Palette.panel_style())
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.custom_minimum_size.x = HINT_MAX_WIDTH
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
