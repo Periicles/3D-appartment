@@ -37,6 +37,7 @@ func setup(p_store: Node, p_view: FurnitureView, p_camera: Camera3D) -> void:
 	store = p_store
 	view = p_view
 	camera = p_camera
+	store.furniture_added.connect(_on_furniture_added)
 	store.furniture_removed.connect(_on_furniture_removed)
 	store.furniture_changed.connect(_on_furniture_changed)
 	store.project_loaded.connect(_on_project_loaded)
@@ -245,12 +246,23 @@ func _emit_focus() -> void:
 		focus_changed.emit(item.id, item.pos, item.size, item.rotation_deg)
 
 
+# Any piece of furniture can be the obstacle a clearance measures against, so
+# every edit refreshes the focus, not only edits of the focused item.
+func _on_furniture_added(_id: String) -> void:
+	_refresh_focus()
+
+
 func _on_furniture_removed(_id: String) -> void:
 	_sync_selection()
+	_refresh_focus()
 
 
-func _on_furniture_changed(id: String) -> void:
-	if id == view.selected_id() and not _dragging:
+func _on_furniture_changed(_id: String) -> void:
+	_refresh_focus()
+
+
+func _refresh_focus() -> void:
+	if not _dragging:
 		_emit_focus()
 
 

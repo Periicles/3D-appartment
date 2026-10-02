@@ -352,3 +352,44 @@ func test_deselecting_clears_the_focus() -> void:
 	watch_signals(_tool)
 	_tool._select("")
 	assert_signal_emitted(_tool, "focus_cleared")
+
+
+func test_adding_another_item_refreshes_the_selected_items_clearances() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	_tool._select(id)
+	watch_signals(_tool)
+	var neighbour := _add_sofa(Vector2(3.0, 2), 0.0)
+	assert_signal_emitted(_tool, "focus_changed")
+	assert_eq(get_signal_parameters(_tool, "focus_changed")[0], id)
+	assert_ne(neighbour, id)
+
+
+func test_undoing_a_neighbours_addition_refreshes_the_focus() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	_add_sofa(Vector2(3.0, 2), 0.0)
+	_tool._select(id)
+	watch_signals(_tool)
+	_store.undo()
+	assert_signal_emitted(_tool, "focus_changed")
+	assert_eq(get_signal_parameters(_tool, "focus_changed")[0], id)
+
+
+func test_moving_or_removing_another_item_refreshes_the_focus() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	var other := _add_sofa(Vector2(3.0, 2), 0.0)
+	_tool._select(id)
+	watch_signals(_tool)
+	_store.update_furniture(other, {"pos": Vector2(3.2, 2)})
+	assert_signal_emit_count(_tool, "focus_changed", 1)
+	_store.remove_furniture(other)
+	assert_signal_emit_count(_tool, "focus_changed", 2)
+
+
+func test_other_edits_do_not_refocus_during_a_drag() -> void:
+	var id := _add_sofa(Vector2(2, 2), 0.0)
+	var other := _add_sofa(Vector2(3.0, 2), 0.0)
+	_click(Vector2(2, 2))
+	assert_eq(_tool.selected_id(), id)
+	watch_signals(_tool)
+	_store.update_furniture(other, {"pos": Vector2(3.2, 2)})
+	assert_signal_not_emitted(_tool, "focus_changed")
