@@ -36,6 +36,10 @@ func before_each() -> void:
 	get_viewport().push_input(InputEventJoypadMotion.new())
 
 
+func after_each() -> void:
+	await wait_physics_frames(1)
+
+
 func _screen(pos: Vector2, height := 0.0) -> Vector2:
 	return _camera.unproject_position(Vector3(pos.x, height, pos.y))
 
@@ -186,9 +190,74 @@ func test_undo_that_removes_the_selected_corner_clears_the_selection() -> void:
 	assert_eq(_tool.selected_kind(), &"")
 
 
+## Looking toward -z lowers the south wall w3, the one between the camera and the room.
+func _lower_south_wall() -> void:
+	_world.update_cutaway(Vector2(0, -1))
+	await wait_seconds(WorldView.CUTAWAY_TWEEN_SECONDS + 0.15)
+	assert_lt(_world.wall_display_height("w3"), 0.5, "w3 is lowered")
+
+
 func test_corner_hidden_by_a_lowered_wall_is_still_picked_before_the_wall() -> void:
+	await _lower_south_wall()
 	_click(Vector2(0, 4))
+	assert_eq(_tool.selected_kind(), &"node")
 	assert_eq(_tool.selected_id(), "n4")
+
+
+func test_a_lowered_wall_is_picked_at_its_lowered_height() -> void:
+	await _lower_south_wall()
+	_click(Vector2(2, 4), true, 2.5)
+	assert_eq(_tool.selected_kind(), &"", "the full-height top is no longer there")
+	_click(Vector2(2, 4), true, 0.1)
+	assert_eq(_tool.selected_id(), "w3")
+
+
+func test_picking_works_with_an_orthographic_plan_camera() -> void:
+	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_camera.size = 6.0
+	_camera.look_at_from_position(Vector3(2, 60, 2), Vector3(2, 0, 2), Vector3(0, 0, -1))
+	_click(Vector2(4, 4))
+	assert_eq(_tool.selected_id(), "n3")
+	_click(Vector2(2, 4), true, 2.5)
+	assert_eq(_tool.selected_id(), "w3")
+
+
+func test_corners_behind_the_camera_are_ignored() -> void:
+	_camera.look_at_from_position(Vector3(2, 1.5, 2), Vector3(2, 1.5, 10))
+	var behind := Vector3(0, StructureView.LIFT, 0)
+	assert_true(_camera.is_position_behind(behind))
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	event.position = _camera.unproject_position(behind)
+	_tool._unhandled_input(event)
+	assert_ne(_tool.selected_id(), "n1")
+
+
+func test_an_edit_during_a_drag_cancels_it() -> void:
+	_click(Vector2(4, 4))
+	_move(Vector2(5, 5), true)
+	_store.update_wall("w1", {"height": 2.0})
+	assert_false(_tool.is_dragging())
+	assert_eq(_node_pos("n3"), Vector2(4, 4))
+	_click(Vector2(5, 5), false)
+	assert_eq(_node_pos("n3"), Vector2(4, 4), "the release after the edit moves nothing")
+
+
+func test_loading_a_project_during_a_drag_cancels_it() -> void:
+	_click(Vector2(4, 4))
+	_move(Vector2(5, 5), true)
+	_store.new_project()
+	assert_false(_tool.is_dragging())
+	assert_eq(_tool.selected_kind(), &"")
+
+
+func test_delete_during_a_drag_is_ignored() -> void:
+	_click(Vector2(4, 4))
+	_move(Vector2(5, 5), true)
+	_key(KEY_DELETE)
+	assert_eq(_store.project.walls.size(), 4)
+	assert_true(_tool.is_dragging())
 
 
 func test_selected_wall_is_highlighted_in_the_view() -> void:

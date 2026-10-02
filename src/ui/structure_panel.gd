@@ -82,6 +82,10 @@ func _refill() -> void:
 	var node: PlanNode = store.project.get_plan_node(_id) if _kind == &"node" else null
 	var wall: Wall = store.project.get_wall(_id) if _kind == &"wall" else null
 	visible = node != null or wall != null
+	if not visible:
+		# A later edit must not commit to an id that no longer exists.
+		_kind = &""
+		_id = ""
 	_node_fields.visible = node != null
 	_wall_fields.visible = wall != null
 	_filling = true

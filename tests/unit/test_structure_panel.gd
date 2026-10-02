@@ -85,3 +85,12 @@ func test_hides_when_the_shown_wall_is_deleted() -> void:
 func test_hint_comes_from_the_shortcut_list() -> void:
 	var labels := _panel.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
 	assert_has(labels, Shortcuts.structure_hint())
+
+
+func test_a_vanished_selection_is_forgotten() -> void:
+	_panel.show_selection(&"wall", "w2")
+	_store.remove_wall("w2")
+	_spin("Length").value = 123.0
+	_store.undo()
+	assert_not_null(_store.project.get_wall("w2"))
+	assert_false(_store.can_undo(), "only the delete was recorded")
