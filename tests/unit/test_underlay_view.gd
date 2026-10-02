@@ -68,3 +68,28 @@ func test_image_next_to_a_saved_project_is_used() -> void:
 	assert_true(_view.show_project(project, dir.path_join("project.json")))
 	assert_almost_eq((_view.mesh as PlaneMesh).size, Vector2(20, 10) * project.underlay.meters_per_px, Vector2(EPS, EPS))
 	DirAccess.remove_absolute(dir.path_join("mine.png"))
+
+
+func test_image_name_cannot_escape_the_project_folder() -> void:
+	var root := ProjectSettings.globalize_path("user://test_underlay_escape")
+	var folder := root.path_join("project")
+	DirAccess.make_dir_recursive_absolute(folder)
+	Image.create(20, 10, false, Image.FORMAT_RGB8).save_png(root.path_join("outside.png"))
+	var project := Fixtures.square_room()
+	project.underlay.image = "../outside.png"
+	assert_false(_view.show_project(project, folder.path_join("project.json")))
+	DirAccess.remove_absolute(root.path_join("outside.png"))
+
+
+func test_unreadable_project_image_falls_through_to_the_bundled_plan() -> void:
+	var folder := ProjectSettings.globalize_path("user://test_underlay_corrupt")
+	DirAccess.make_dir_recursive_absolute(folder)
+	var bundled_name := _log16().underlay.image.get_file()
+	var file := FileAccess.open(folder.path_join(bundled_name), FileAccess.WRITE)
+	file.store_string("not an image")
+	file.close()
+	assert_true(_view.show_project(_log16(), folder.path_join("project.json")))
+	DirAccess.remove_absolute(folder.path_join(bundled_name))
+	# The decoder reports the corrupt file itself (4 engine lines); ours adds the warning.
+	assert_engine_error_count(4)
+	assert_push_warning("Calque illisible")

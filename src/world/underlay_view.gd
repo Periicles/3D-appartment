@@ -68,15 +68,23 @@ func _build(underlay: Underlay, texture: Texture2D) -> void:
 
 static func _load_texture(image: String, project_path: String) -> Texture2D:
 	var candidates := PackedStringArray()
+	# Only the file name counts: a hand-edited project must not make the app
+	# read images outside its own folder ("../x.png", absolute paths).
+	var file_name := image.get_file()
+	if file_name == "":
+		return null
 	if project_path != "":
-		candidates.append(project_path.get_base_dir().path_join(image))
-	candidates.append(BUNDLED_DIR.path_join(image.get_file()))
+		candidates.append(project_path.get_base_dir().path_join(file_name))
+	candidates.append(BUNDLED_DIR.path_join(file_name))
 	for path in candidates:
 		if path.begins_with("res://"):
-			if ResourceLoader.exists(path):
-				return load(path) as Texture2D
+			var texture := load(path) as Texture2D if ResourceLoader.exists(path) else null
+			if texture != null:
+				return texture
 		elif FileAccess.file_exists(path):
 			var loaded := Image.load_from_file(path)
-			if loaded != null:
-				return ImageTexture.create_from_image(loaded)
+			if loaded == null:
+				push_warning("Calque illisible : %s" % path)
+				continue
+			return ImageTexture.create_from_image(loaded)
 	return null
