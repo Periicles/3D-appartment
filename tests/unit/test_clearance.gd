@@ -70,3 +70,16 @@ func test_overlap_counts_as_zero() -> void:
 	var block := _square(Vector2(2, 2.4), 0.2)  # covers the middle of the front side
 	var result := Clearance.free_distances(Vector2(2, 2), BOX, 0.0, [block] as Array[PackedVector2Array])
 	assert_eq(result.front.distance, 0.0)
+
+
+func test_a_narrow_neighbour_between_the_old_three_rays_is_seen() -> void:
+	# 1 m wide box: the old rays sat at x = 1.52, 2.0 and 2.48; this table spans 2.1 .. 2.4.
+	var table := _square(Vector2(2.25, 2.6), 0.15)
+	var result := Clearance.free_distances(Vector2(2, 2), BOX, 0.0, [table] as Array[PackedVector2Array])
+	assert_almost_eq(result.front.distance, 2.45 - 2.3, EPS)
+
+
+func test_a_side_without_length_casts_a_single_ray() -> void:
+	var result := Clearance.free_distances(Vector2(2, 2), Vector3(0.0, 0.5, 0.0), 0.0,
+		[_square(Vector2(2, 3), 0.1)] as Array[PackedVector2Array])
+	assert_almost_eq(result.front.distance, 0.9, EPS)

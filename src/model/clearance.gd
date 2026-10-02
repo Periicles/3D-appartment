@@ -10,6 +10,9 @@ const MAX_RANGE := 10.0
 ## Rays start this far inside the side's ends, so touching neighbours at a
 ## corner do not count as zero clearance.
 const CORNER_INSET := 0.02
+## Rays along a side are at most this far apart, so a narrow neighbour cannot
+## slip between two of them.
+const RAY_SPACING := 0.2
 ## Per side, in the item's local frame (x = width axis, y = towards the front):
 ## [outward normal, direction along the side].
 const _SIDE_FRAMES := {
@@ -37,7 +40,7 @@ static func free_distances(pos: Vector2, size: Vector3, rotation_deg: float,
 		var outward := Placement.to_world(Vector2.ZERO, rotation_deg, normal_local)
 		var best := {}
 		var inset := maxf(half_length - CORNER_INSET, 0.0)
-		for t in [-inset, 0.0, inset]:
+		for t in _ray_offsets(inset):
 			var origin := Placement.to_world(pos, rotation_deg, normal_local * offset + along_local * t)
 			var hit := _cast(origin, outward, obstacles)
 			if hit.is_empty():
@@ -47,6 +50,17 @@ static func free_distances(pos: Vector2, size: Vector3, rotation_deg: float,
 		if not best.is_empty():
 			result[side] = best
 	return result
+
+
+## Evenly spaced positions along a side, from -inset to +inset.
+static func _ray_offsets(inset: float) -> PackedFloat32Array:
+	if inset <= 0.0:
+		return PackedFloat32Array([0.0])
+	var count := ceili(2.0 * inset / RAY_SPACING) + 1
+	var offsets := PackedFloat32Array()
+	for i in count:
+		offsets.append(lerpf(-inset, inset, float(i) / (count - 1)))
+	return offsets
 
 
 ## The obstacles around an item: every wall footprint and every other item's footprint.
