@@ -15,3 +15,16 @@ var height: float
 ## Height of the opening's bottom edge above the floor; 0 for doors.
 var sill: float
 var swing: String
+
+
+func copy() -> Opening:
+	var other := Opening.new()
+	other.id = id
+	other.wall_id = wall_id
+	other.kind = kind
+	other.offset = offset
+	other.width = width
+	other.height = height
+	other.sill = sill
+	other.swing = swing
+	return other

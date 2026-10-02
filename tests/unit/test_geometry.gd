@@ -133,3 +133,25 @@ func test_room_net_area_keeps_open_edges() -> void:
 	project.walls.erase(project.get_wall("w3"))
 	project.openings.clear()
 	assert_almost_eq(Geometry.room_net_area(project, project.rooms[0]), 14.8, EPS)
+
+
+func test_nearly_straight_wall_still_counts_as_through() -> void:
+	# The right half of the through wall is 2° off straight, as after a hand drag.
+	var tilt := 2.0 * tan(deg_to_rad(2.0))
+	var project := _project(
+		[["a", 0, 0], ["m", 2, 0], ["b", 4, tilt], ["c", 2, 3]],
+		[["w1", "a", "m", 0.2], ["w2", "m", "b", 0.2], ["p", "m", "c", 0.08]])
+	var partition: PackedVector2Array = Geometry.wall_footprints(project)["p"]
+	assert_true(_has_point(partition, Vector2(1.96, 0.1)), "partition stops on the face: %s" % [partition])
+
+
+func test_a_clear_bend_is_mitred_not_through() -> void:
+	var project := _project(
+		[["a", 0, 0], ["m", 2, 0], ["b", 4, 0.5]],
+		[["w1", "a", "m", 0.2], ["w2", "m", "b", 0.2]])
+	var footprints := Geometry.wall_footprints(project)
+	var shared := 0
+	for p in footprints["w1"]:
+		if _has_point(footprints["w2"], p):
+			shared += 1
+	assert_eq(shared, 2, "14° bend: mitred joint")

@@ -9,3 +9,13 @@ var a: String
 var b: String
 var thickness: float
 var height: float
+
+
+func copy() -> Wall:
+	var other := Wall.new()
+	other.id = id
+	other.a = a
+	other.b = b
+	other.thickness = thickness
+	other.height = height
+	return other
