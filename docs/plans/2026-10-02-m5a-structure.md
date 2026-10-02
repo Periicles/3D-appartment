@@ -236,7 +236,7 @@ index aad73ef..3b8ac07 100644
  				is_through = true
  		flags.append(is_through)
  	return flags
-diff --git asrc/model/structure_snap.gd b/src/model/structure_snap.gd
+diff --git a/src/model/structure_snap.gd b/src/model/structure_snap.gd
 new file mode 100644
 index 0000000..476302c
 --- /dev/null
@@ -374,7 +374,7 @@ index 790ee17..fdc16a4 100644
 +		if _has_point(footprints["w2"], p):
 +			shared += 1
 +	assert_eq(shared, 2, "14° bend: mitred joint")
-diff --git atests/unit/test_structure_snap.gd b/tests/unit/test_structure_snap.gd
+diff --git a/tests/unit/test_structure_snap.gd b/tests/unit/test_structure_snap.gd
 new file mode 100644
 index 0000000..996c22c
 --- /dev/null
@@ -716,7 +716,7 @@ index 0c10137..7c944c8 100644
 +		if node_id in room.node_ids:
 +			return true
 +	return false
-diff --git atests/unit/test_project_store_structure.gd b/tests/unit/test_project_store_structure.gd
+diff --git a/tests/unit/test_project_store_structure.gd b/tests/unit/test_project_store_structure.gd
 new file mode 100644
 index 0000000..028ae8c
 --- /dev/null
@@ -1082,7 +1082,7 @@ index e5bdfec..ca28d5e 100644
  static func _block(size: Vector3, material: StandardMaterial3D) -> Node3D:
  	var node := Node3D.new()
  	var box := MeshInstance3D.new()
-diff --git asrc/world/structure_view.gd b/src/world/structure_view.gd
+diff --git a/src/world/structure_view.gd b/src/world/structure_view.gd
 new file mode 100644
 index 0000000..aae1827
 --- /dev/null
@@ -1353,7 +1353,7 @@ git commit -m "feat: in-place wall rebuild, corner handles and dimmed furniture"
 - [ ] **Step 1: Appliquer le patch**
 
 ```diff
-diff --git asrc/tools/structure_tool.gd b/src/tools/structure_tool.gd
+diff --git a/src/tools/structure_tool.gd b/src/tools/structure_tool.gd
 new file mode 100644
 index 0000000..6f80fb9
 --- /dev/null
@@ -1585,7 +1585,7 @@ index 0000000..6f80fb9
 +	select(&"", "")
 +	overlay.visible = is_active()
 +	_redraw(store.project)
-diff --git asrc/ui/structure_panel.gd b/src/ui/structure_panel.gd
+diff --git a/src/ui/structure_panel.gd b/src/ui/structure_panel.gd
 new file mode 100644
 index 0000000..94b490f
 --- /dev/null
@@ -1802,7 +1802,7 @@ index eb5fad9..df7ca97 100644
  static func _group(title: String, entries: Array) -> Dictionary:
  	return {"title": title, "entries": entries}
  
-diff --git atests/unit/test_structure_tool.gd b/tests/unit/test_structure_tool.gd
+diff --git a/tests/unit/test_structure_tool.gd b/tests/unit/test_structure_tool.gd
 new file mode 100644
 index 0000000..95047cf
 --- /dev/null
@@ -2006,7 +2006,7 @@ index 0000000..95047cf
 +	assert_eq(_world.highlighted_wall(), "w3")
 +	_tool.select(&"node", "n3")
 +	assert_eq(_world.highlighted_wall(), "")
-diff --git atests/unit/test_structure_panel.gd b/tests/unit/test_structure_panel.gd
+diff --git a/tests/unit/test_structure_panel.gd b/tests/unit/test_structure_panel.gd
 new file mode 100644
 index 0000000..b72cae7
 --- /dev/null
