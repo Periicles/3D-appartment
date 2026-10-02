@@ -12,6 +12,7 @@ var _floors: Node3D
 var _center := Vector2.ZERO
 var _last_forward := Vector2.ZERO
 var _lowered := {}  # wall id -> bool, to tween only on change
+var _suspended := false  # plan view: every wall stands at full height
 var _tweens := {}  # wall id -> Tween, so a new move replaces the running one
 
 
@@ -36,9 +37,22 @@ func cycle_cutaway_mode() -> void:
 	_last_forward = Vector2.ZERO
 
 
+## While suspended (plan view), every wall stands at full height and camera
+## headings are ignored; resuming recomputes the cutaway on the next heading.
+func set_cutaway_suspended(suspended: bool) -> void:
+	_suspended = suspended
+	_lowered.clear()
+	_last_forward = Vector2.ZERO
+	if suspended and _project != null:
+		for wall in _project.walls:
+			var node := _walls.get_node_or_null(NodePath(wall.id)) as Node3D
+			if node != null:
+				_tween_wall(wall.id, node, 1.0)
+
+
 ## Called every frame by the camera rig with its horizontal viewing direction.
 func update_cutaway(camera_forward: Vector2) -> void:
-	if _project == null or camera_forward.is_equal_approx(_last_forward):
+	if _project == null or _suspended or camera_forward.is_equal_approx(_last_forward):
 		return
 	_last_forward = camera_forward
 	for wall in _project.walls:
@@ -50,10 +64,13 @@ func update_cutaway(camera_forward: Vector2) -> void:
 		if _lowered.get(wall.id) == lowered:
 			continue
 		_lowered[wall.id] = lowered
-		var target := Cutaway.target_scale(cutaway_mode, lowered, wall.height)
-		var running: Tween = _tweens.get(wall.id)
-		if running:
-			running.kill()
-		var tween := create_tween()
-		tween.tween_property(node, "scale:y", target, CUTAWAY_TWEEN_SECONDS)
-		_tweens[wall.id] = tween
+		_tween_wall(wall.id, node, Cutaway.target_scale(cutaway_mode, lowered, wall.height))
+
+
+func _tween_wall(wall_id: String, node: Node3D, target_scale: float) -> void:
+	var running: Tween = _tweens.get(wall_id)
+	if running:
+		running.kill()
+	var tween := create_tween()
+	tween.tween_property(node, "scale:y", target_scale, CUTAWAY_TWEEN_SECONDS)
+	_tweens[wall_id] = tween

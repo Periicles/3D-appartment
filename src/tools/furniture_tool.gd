@@ -7,6 +7,11 @@ extends Node
 ## to a store signal when this tool reads the selection back.
 
 signal selection_changed(id: String)
+## The footprint whose clearances should be shown (the ghost, the dragged item
+## or the selection) moved; `ignore_id` is the item itself ("" for the ghost).
+signal focus_changed(ignore_id: String, pos: Vector2, size: Vector3, rotation_deg: float)
+## Nothing to measure around any more.
+signal focus_cleared
 
 const ROTATE_STEP_DEG := 90.0
 const FINE_ROTATE_STEP_DEG := 15.0
@@ -32,7 +37,9 @@ func setup(p_store: Node, p_view: FurnitureView, p_camera: Camera3D) -> void:
 	store = p_store
 	view = p_view
 	camera = p_camera
+	store.furniture_added.connect(_on_furniture_added)
 	store.furniture_removed.connect(_on_furniture_removed)
+	store.furniture_changed.connect(_on_furniture_changed)
 	store.project_loaded.connect(_on_project_loaded)
 
 
@@ -58,6 +65,7 @@ func begin_placement(preset: FurniturePreset) -> void:
 func cancel_placement() -> void:
 	_placing = null
 	view.hide_ghost()
+	_emit_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -87,6 +95,7 @@ func _on_mouse_motion(event: InputEventMouseMotion) -> void:
 		_drag_pos = placed.pos
 		_drag_rotation = placed.rotation_deg
 		view.preview_item(item.id, _drag_pos, _drag_rotation)
+		focus_changed.emit(item.id, _drag_pos, item.size, _drag_rotation)
 		get_viewport().set_input_as_handled()
 
 
@@ -181,6 +190,7 @@ func _update_ghost(screen_pos: Vector2, free_move: bool) -> void:
 	_ghost_pos = placed.pos
 	_ghost_rotation = placed.rotation_deg
 	view.move_ghost(_ghost_pos, _ghost_rotation)
+	focus_changed.emit("", _ghost_pos, _placing.size, _ghost_rotation)
 
 
 func _place_ghost() -> void:
@@ -221,10 +231,39 @@ func _sync_selection() -> void:
 		_dragging = false
 	_selection = current
 	selection_changed.emit(current)
+	_emit_focus()
+
+
+## Re-announces the focus from the current state (ghost, else selection).
+func _emit_focus() -> void:
+	if _placing != null:
+		focus_changed.emit("", _ghost_pos, _placing.size, _ghost_rotation)
+		return
+	var item: FurnitureItem = store.get_furniture(view.selected_id()) if view.selected_id() != "" else null
+	if item == null:
+		focus_cleared.emit()
+	else:
+		focus_changed.emit(item.id, item.pos, item.size, item.rotation_deg)
+
+
+# Any piece of furniture can be the obstacle a clearance measures against, so
+# every edit refreshes the focus, not only edits of the focused item.
+func _on_furniture_added(_id: String) -> void:
+	_refresh_focus()
 
 
 func _on_furniture_removed(_id: String) -> void:
 	_sync_selection()
+	_refresh_focus()
+
+
+func _on_furniture_changed(_id: String) -> void:
+	_refresh_focus()
+
+
+func _refresh_focus() -> void:
+	if not _dragging:
+		_emit_focus()
 
 
 func _on_project_loaded() -> void:

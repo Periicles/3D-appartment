@@ -47,6 +47,13 @@ static func groups() -> Array[Dictionary]:
 			_entry(["cmd", "shift", "Z"], "Rétablir"),
 			_entry(["Échap"], "Abandonner l'ajout ou désélectionner"),
 		]),
+		_group("Vue et mesures", [
+			_entry(["Tab"], "Vue plan, ou retour à la vue orbitale"),
+			_entry(["O"], "Vue orbitale"),
+			_entry(["P"], "Calque du plan d'architecte (en vue plan)"),
+			_entry(["M"], "Mesurer : cliquer deux points"),
+			_entry(["Échap"], "Effacer toutes les mesures"),
+		]),
 		_group("Fichier", [
 			_entry(["cmd", "shift", "O"], "Accueil : choisir un projet"),
 			_entry(["cmd", "O"], "Ouvrir un projet"),
@@ -67,7 +74,8 @@ static func groups() -> Array[Dictionary]:
 
 ## The interface action a key press triggers: &"toggle_catalog",
 ## &"toggle_inspector", &"help", &"cutaway", &"zoom_in", &"zoom_out",
-## &"zoom_reset", &"welcome", &"open", &"save", &"save_as", or &"" for none. Accepts the QWERTY and AZERTY variants.
+## &"zoom_reset", &"welcome", &"open", &"save", &"save_as", &"plan_view",
+## &"orbit_view", &"underlay", &"measure", or &"" for none. Accepts the QWERTY and AZERTY variants.
 static func action_for(event: InputEventKey) -> StringName:
 	if not event.pressed or event.echo:
 		return &""
@@ -89,6 +97,15 @@ static func action_for(event: InputEventKey) -> StringName:
 	if character == "?" or event.keycode == KEY_F1:
 		return &"help"
 	match event.keycode:
+		KEY_TAB:
+			# Shift + Tab is reverse focus traversal.
+			return &"" if event.shift_pressed else &"plan_view"
+		KEY_O:
+			return &"orbit_view"
+		KEY_P:
+			return &"underlay"
+		KEY_M:
+			return &"measure"
 		KEY_C:
 			return &"toggle_catalog"
 		KEY_I:

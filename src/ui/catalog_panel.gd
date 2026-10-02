@@ -39,6 +39,7 @@ func populate(presets: Array[FurniturePreset]) -> void:
 		button.name = preset.id
 		button.text = preset.name
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.focus_mode = Control.FOCUS_NONE  # Keeps Tab, Space and Enter for the shortcuts.
 		button.tooltip_text = "%d × %d × %d cm" % [roundi(preset.size.x * 100), roundi(preset.size.z * 100),
 			roundi(preset.size.y * 100)]
 		button.pressed.connect(preset_chosen.emit.bind(preset))

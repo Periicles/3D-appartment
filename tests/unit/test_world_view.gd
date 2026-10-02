@@ -106,3 +106,22 @@ func test_quick_reversal_ends_at_last_requested_scale() -> void:
 	assert_false(first.is_valid(), "previous tween is killed")
 	await wait_seconds(TWEEN_WAIT)
 	assert_eq(_scale_y("w3"), 1.0)
+
+
+func test_suspended_cutaway_raises_every_wall_and_ignores_headings() -> void:
+	_view.update_cutaway(LOOKING_NORTH)
+	await wait_seconds(TWEEN_WAIT)
+	assert_almost_eq(_scale_y("w3"), 0.08, 1e-3)
+	_view.set_cutaway_suspended(true)
+	_view.update_cutaway(Vector2(0, 1))
+	await wait_seconds(TWEEN_WAIT)
+	for id in ["w1", "w2", "w3", "w4"]:
+		assert_eq(_scale_y(id), 1.0, id)
+
+
+func test_resuming_recomputes_the_cutaway() -> void:
+	_view.set_cutaway_suspended(true)
+	_view.set_cutaway_suspended(false)
+	_view.update_cutaway(LOOKING_NORTH)
+	await wait_seconds(TWEEN_WAIT)
+	assert_almost_eq(_scale_y("w3"), 0.08, 1e-3)

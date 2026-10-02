@@ -17,7 +17,7 @@ func test_plain_tokens_are_kept() -> void:
 
 func test_groups_cover_camera_furniture_and_interface() -> void:
 	var titles: Array = Shortcuts.groups().map(func(g: Dictionary) -> String: return g.title)
-	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Fichier", "Interface"])
+	assert_eq(titles, ["Caméra (souris)", "Caméra (trackpad)", "Meubles", "Vue et mesures", "Fichier", "Interface"])
 
 
 func test_every_entry_has_keys_and_action() -> void:
@@ -29,7 +29,7 @@ func test_every_entry_has_keys_and_action() -> void:
 
 
 func test_interface_group_lists_panel_help_and_zoom_keys() -> void:
-	var interface: Dictionary = Shortcuts.groups()[4]
+	var interface: Dictionary = Shortcuts.groups()[5]
 	var keys: Array = interface.entries.map(func(e: Dictionary) -> String: return Shortcuts.format_keys(e.keys, false))
 	for expected in ["C", "I", "? / F1", "Ctrl + +", "Ctrl + −", "Ctrl + 0", "H"]:
 		assert_has(keys, expected)
@@ -104,3 +104,22 @@ func test_file_keys() -> void:
 	assert_eq(Shortcuts.action_for(_key(KEY_S, 0, true)), &"save")
 	assert_eq(Shortcuts.action_for(_key(KEY_S, 0, true, true)), &"save_as")
 	assert_eq(Shortcuts.action_for(_key(KEY_S)), &"", "plain S does nothing")
+
+
+
+func test_view_and_measure_keys() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_TAB)), &"plan_view")
+	assert_eq(Shortcuts.action_for(_key(KEY_O)), &"orbit_view")
+	assert_eq(Shortcuts.action_for(_key(KEY_P)), &"underlay")
+	assert_eq(Shortcuts.action_for(_key(KEY_M)), &"measure")
+	assert_eq(Shortcuts.action_for(_key(KEY_O, 0, true)), &"open", "⌘O still opens a project")
+
+
+func test_command_view_keys_are_ignored() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_M, 0, true)), &"", "⌘M minimises the window")
+	assert_eq(Shortcuts.action_for(_key(KEY_P, 0, true)), &"", "⌘P is print")
+	assert_eq(Shortcuts.action_for(_key(KEY_TAB, 0, true)), &"", "⌘Tab switches application")
+
+
+func test_shift_tab_is_not_the_plan_view() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_TAB, 0, false, true)), &"")
