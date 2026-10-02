@@ -165,3 +165,45 @@ func test_structure_edits_make_the_project_dirty() -> void:
 	assert_true(_store.is_dirty())
 	_store.undo()
 	assert_false(_store.is_dirty())
+
+
+func test_non_numeric_or_non_finite_wall_values_are_refused() -> void:
+	var bad_values: Array = [null, "3", INF, NAN]
+	for key in Store.WALL_FIELDS:
+		for value in bad_values:
+			assert_false(_store.update_wall("w2", {key: value}), "%s = %s" % [key, value])
+	assert_false(_store.update_wall("w2", {"length": -3.0}))
+	assert_false(_store.update_wall("w2", {"length": 0.0}))
+	assert_false(_store.can_undo())
+	assert_eq(_node_pos("n3"), Vector2(4, 4))
+
+
+func test_a_non_finite_corner_position_is_refused() -> void:
+	for pos in [Vector2(NAN, 0), Vector2(INF, 1)]:
+		assert_false(_store.move_node("n3", pos))
+		assert_false(_store.can_move_node("n3", pos))
+	assert_false(_store.can_undo())
+	assert_eq(_node_pos("n3"), Vector2(4, 4))
+
+
+func test_unchanged_wall_values_record_nothing() -> void:
+	assert_false(_store.update_wall("w2", {"thickness": 0.2}))
+	assert_false(_store.update_wall("w2", {"length": 4.0}))
+	assert_false(_store.can_undo())
+
+
+func test_redo_of_a_structure_edit_switches_to_structure_mode() -> void:
+	_store.move_node("n3", Vector2(5, 5))
+	_store.undo()
+	_store.set_edit_mode(Store.EditMode.FURNITURE)
+	assert_true(_store.redo())
+	assert_eq(_store.edit_mode, Store.EditMode.STRUCTURE)
+	assert_eq(_node_pos("n3"), Vector2(5, 5))
+
+
+func test_undo_and_redo_emit_structure_changed() -> void:
+	_store.move_node("n3", Vector2(5, 5))
+	watch_signals(_store)
+	_store.undo()
+	_store.redo()
+	assert_signal_emit_count(_store, "structure_changed", 2)

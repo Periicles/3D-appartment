@@ -185,8 +185,10 @@ func set_edit_mode(mode: EditMode) -> void:
 
 ## Moves a corner, dragging every wall joined to it. Returns false (and changes
 ## nothing) outside the Structure mode, for an unknown id, or when a wall would
-## become too short or an opening would no longer fit.
+## become too short or an opening would no longer fit, or for a non-finite `pos`.
 func move_node(id: String, pos: Vector2) -> bool:
+	if edit_mode != EditMode.STRUCTURE or not pos.is_finite():
+		return false
 	var node := project.get_plan_node(id)
 	if node == null or node.pos.is_equal_approx(pos):
 		return false
@@ -195,18 +197,24 @@ func move_node(id: String, pos: Vector2) -> bool:
 
 ## True when move_node(id, pos) would be accepted (live drag feedback).
 func can_move_node(id: String, pos: Vector2) -> bool:
+	if not pos.is_finite():
+		return false
 	var probe := project.copy()
 	return probe.get_plan_node(id) != null and _set_node_pos(probe, id, pos) and _is_buildable(probe)
 
 
 ## Applies `changes` (keys from WALL_FIELDS, in metres) to the wall. A new
-## length moves its end node `b` along the wall. Same refusals as move_node.
+## length moves its end node `b` along the wall. Values must be finite numbers
+## above zero. Same refusals as move_node, plus when nothing would change.
 func update_wall(id: String, changes: Dictionary) -> bool:
-	if project.get_wall(id) == null or changes.is_empty():
+	var wall := project.get_wall(id)
+	if wall == null or changes.is_empty():
 		return false
 	for key in changes:
-		if not key in WALL_FIELDS:
+		if not key in WALL_FIELDS or not _is_positive_number(changes[key]):
 			return false
+	if not changes.keys().any(func(key: String) -> bool: return not _wall_field_is(wall, key, changes[key])):
+		return false
 	return _edit_structure("modifier un mur", _set_wall_fields.bind(id, changes.duplicate()))
 
 
@@ -244,10 +252,10 @@ func can_redo() -> bool:
 func _replace(new_project_data: ProjectData, path: String, dirty := false) -> void:
 	project = new_project_data
 	current_path = path
-	set_edit_mode(EditMode.FURNITURE)
 	# Without a version bump: clearing is not an edit.
 	_history.clear_history(false)
 	_saved_version = -1 if dirty else _history.get_version()
+	set_edit_mode(EditMode.FURNITURE)
 	project_loaded.emit()
 	path_changed.emit(path)
 	dirty_changed.emit(dirty)
@@ -326,6 +334,15 @@ func _is_buildable(probe: ProjectData) -> bool:
 		if probe.wall_length(wall) < MIN_WALL_LENGTH:
 			return false
 	return ProjectValidator.validate(probe).is_empty()
+
+
+static func _is_positive_number(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) and float(value) > 0.0
+
+
+func _wall_field_is(wall: Wall, key: String, value: Variant) -> bool:
+	var current: float = project.wall_length(wall) if key == "length" else wall.get(key)
+	return is_equal_approx(current, float(value))
 
 
 static func _set_node_pos(probe: ProjectData, id: String, pos: Vector2) -> bool:
