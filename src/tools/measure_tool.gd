@@ -59,6 +59,13 @@ func clear_all() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		# Measures outlive the tool, so Échap must clear them after M too; with
+		# nothing to clear it falls through and deselects the furniture.
+		if _active or not _measurements.is_empty():
+			clear_all()
+			get_viewport().set_input_as_handled()
+		return
 	if not _active:
 		return
 	if event is InputEventMouseMotion and _start != null:
@@ -66,12 +73,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if point != null:
 			_preview.set_points(_start, point)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# A focused button would otherwise keep Tab, Space and Enter.
+		get_viewport().gui_release_focus()
 		var point = _snapped_ground(event.position)
 		if point != null:
 			_click(point)
-		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		clear_all()
 		get_viewport().set_input_as_handled()
 
 

@@ -98,7 +98,8 @@ static func action_for(event: InputEventKey) -> StringName:
 		return &"help"
 	match event.keycode:
 		KEY_TAB:
-			return &"plan_view"
+			# Shift + Tab is reverse focus traversal.
+			return &"" if event.shift_pressed else &"plan_view"
 		KEY_O:
 			return &"orbit_view"
 		KEY_P:

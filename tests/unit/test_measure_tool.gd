@@ -23,6 +23,8 @@ func before_each() -> void:
 	_tool = MeasureTool.new()
 	add_child_autofree(_tool)
 	_tool.setup(_store, _camera, _layer)
+	# The handled flag is per viewport and only the engine clears it, between events.
+	get_viewport().push_input(InputEventJoypadMotion.new())
 
 
 func _click(pos: Vector2) -> void:
@@ -44,6 +46,10 @@ func _escape() -> void:
 	event.keycode = KEY_ESCAPE
 	event.pressed = true
 	_tool._unhandled_input(event)
+
+
+func _handled() -> bool:
+	return get_viewport().is_input_handled()
 
 
 func _lines() -> Array:
@@ -120,3 +126,40 @@ func test_leaving_with_m_keeps_the_measurements() -> void:
 	_tool.toggle()
 	assert_false(_tool.is_active())
 	assert_eq(_lines().size(), 1)
+
+
+func test_escape_while_measuring_marks_the_event_handled() -> void:
+	_tool.toggle()
+	_escape()
+	assert_true(_handled())
+
+
+func test_a_measuring_click_marks_the_event_handled() -> void:
+	_tool.toggle()
+	_click(Vector2(1, 2))
+	assert_true(_handled())
+
+
+func test_escape_after_leaving_the_tool_still_clears_the_measurements() -> void:
+	_tool.toggle()
+	_click(Vector2(1, 2))
+	_click(Vector2(3, 2))
+	_tool.toggle()
+	_escape()
+	await wait_physics_frames(1)
+	assert_eq(_tool.measurements().size(), 0)
+	assert_eq(_lines().size(), 0)
+	assert_true(_handled())
+
+
+func test_escape_with_nothing_to_clear_falls_through_to_deselection() -> void:
+	_escape()
+	assert_false(_handled())
+
+
+func test_a_measuring_click_releases_gui_focus() -> void:
+	var field: LineEdit = add_child_autofree(LineEdit.new())
+	field.grab_focus()
+	_tool.toggle()
+	_click(Vector2(1, 2))
+	assert_null(get_viewport().gui_get_focus_owner())

@@ -38,6 +38,10 @@ func frame_project(project: ProjectData) -> void:
 	_project = project
 	var center := Cutaway.apartment_center(project)
 	orbit.target = Vector3(center.x, 0, center.y)
+	if _view_tween and _view_tween.is_running():
+		# Its destination was computed from the previous project's centre.
+		_view_tween.kill()
+		_finish_view_change()
 	_apply()
 
 
@@ -87,6 +91,10 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		# Before the transition guard: any press on the scene must free the
+		# keyboard from a focused button, so Tab still reaches the shortcuts.
+		get_viewport().gui_release_focus()
 	if _view_tween and _view_tween.is_running():
 		return
 	if event is InputEventMouseMotion:

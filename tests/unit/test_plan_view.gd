@@ -114,3 +114,25 @@ func test_input_is_ignored_during_the_transition() -> void:
 	wheel.pressed = true
 	_camera._unhandled_input(wheel)
 	assert_eq(_camera.orbit.distance, before)
+
+
+func test_framing_a_project_during_the_transition_lands_on_the_new_centre() -> void:
+	_camera.set_plan_mode(true)
+	var moved := Fixtures.square_room()
+	for node in moved.nodes:
+		node.pos += Vector2(10, 0)
+	_camera.frame_project(moved)
+	var center := Cutaway.apartment_center(moved)
+	assert_almost_eq(Vector2(_camera.position.x, _camera.position.z), center, Vector2(EPS, EPS))
+	assert_eq(_camera.projection, Camera3D.PROJECTION_ORTHOGONAL)
+
+
+func test_any_mouse_press_releases_gui_focus_even_during_the_transition() -> void:
+	var field: LineEdit = add_child_autofree(LineEdit.new())
+	field.grab_focus()
+	_camera.set_plan_mode(true)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_RIGHT
+	press.pressed = true
+	_camera._unhandled_input(press)
+	assert_null(get_viewport().gui_get_focus_owner())

@@ -113,3 +113,13 @@ func test_view_and_measure_keys() -> void:
 	assert_eq(Shortcuts.action_for(_key(KEY_P)), &"underlay")
 	assert_eq(Shortcuts.action_for(_key(KEY_M)), &"measure")
 	assert_eq(Shortcuts.action_for(_key(KEY_O, 0, true)), &"open", "⌘O still opens a project")
+
+
+func test_command_view_keys_are_ignored() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_M, 0, true)), &"", "⌘M minimises the window")
+	assert_eq(Shortcuts.action_for(_key(KEY_P, 0, true)), &"", "⌘P is print")
+	assert_eq(Shortcuts.action_for(_key(KEY_TAB, 0, true)), &"", "⌘Tab switches application")
+
+
+func test_shift_tab_is_not_the_plan_view() -> void:
+	assert_eq(Shortcuts.action_for(_key(KEY_TAB, 0, false, true)), &"")
