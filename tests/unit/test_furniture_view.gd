@@ -125,3 +125,18 @@ func test_bound_store_edits_are_mirrored() -> void:
 	assert_null(_view.get_node_or_null("f1"))
 	store.undo()
 	assert_not_null(_view.get_node_or_null("f1"), "undo brings the block back")
+
+
+func test_dimming_fades_every_block_and_survives_updates() -> void:
+	var store: Node = autofree(preload("res://src/store/project_store.gd").new())
+	store.project = Fixtures.square_room()
+	_view.bind_store(store)
+	_view.set_dimmed(true)
+	var mat := _box("f1").material_override as StandardMaterial3D
+	assert_almost_eq(mat.albedo_color.a, FurnitureView.DIMMED_ALPHA, EPS)
+	assert_eq(mat.transparency, BaseMaterial3D.TRANSPARENCY_ALPHA)
+	_view.update_item(store.get_furniture("f1"))
+	assert_almost_eq(mat.albedo_color.a, FurnitureView.DIMMED_ALPHA, EPS, "an update keeps the fade")
+	_view.set_dimmed(false)
+	assert_eq(mat.albedo_color, store.get_furniture("f1").color)
+	assert_eq(mat.transparency, BaseMaterial3D.TRANSPARENCY_DISABLED)
